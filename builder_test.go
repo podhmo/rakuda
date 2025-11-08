@@ -398,4 +398,38 @@ func TestNotFoundHandler(t *testing.T) {
 			t.Errorf("Body mismatch: got %q, want %q", rr.Body.String(), "ok")
 		}
 	})
+
+	t.Run("RootPathWithNotFound", func(t *testing.T) {
+		b := NewBuilder()
+		// Register a handler for the root path.
+		b.Get("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("root"))
+		}))
+		b.NotFound(customNotFoundHandler)
+		router := b.Build()
+
+		// 1. Test the root path `GET /`
+		reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
+		rrRoot := httptest.NewRecorder()
+		router.ServeHTTP(rrRoot, reqRoot)
+
+		if rrRoot.Code != http.StatusOK {
+			t.Errorf("Root path status mismatch: got %d, want %d", rrRoot.Code, http.StatusOK)
+		}
+		if rrRoot.Body.String() != "root" {
+			t.Errorf("Root path body mismatch: got %q, want %q", rrRoot.Body.String(), "root")
+		}
+
+		// 2. Test a non-existent path `/not-found`
+		reqNotFound := httptest.NewRequest(http.MethodGet, "/not-found", nil)
+		rrNotFound := httptest.NewRecorder()
+		router.ServeHTTP(rrNotFound, reqNotFound)
+
+		if rrNotFound.Code != http.StatusNotFound {
+			t.Errorf("Not found status mismatch: got %d, want %d", rrNotFound.Code, http.StatusNotFound)
+		}
+		if rrNotFound.Body.String() != "custom not found" {
+			t.Errorf("Not found body mismatch: got %q, want %q", rrNotFound.Body.String(), "custom not found")
+		}
+	})
 }

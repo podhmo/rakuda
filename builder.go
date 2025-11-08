@@ -56,6 +56,10 @@ func (b *Builder) NotFound(handler http.Handler) {
 }
 
 func (b *Builder) registerHandler(method string, pattern string, handler http.Handler) {
+	// Use '{$}' to ensure the root path doesn't act as a catch-all.
+	if pattern == "/" {
+		pattern = "/{$}"
+	}
 	b.node.actions = append(b.node.actions, handlerAction{
 		method:  method,
 		pattern: pattern,
