@@ -1,65 +1,46 @@
+> [!NOTE]
+> This feature has been implemented.
+
 # Plan: Test Helper `rakudatest`
 
-This document outlines the plan to create a new test helper package `rakudatest` for the `rakuda` project. The design is inspired by `quickapitest` and focuses on a simple, functional API for testing `http.Handler` instances.
+This document outlines the plan to create a new test helper package `rakudatest` for the `rakuda` project. The design is inspired by `quickapitest` and focuses on a single, convenient function for testing `http.Handler` instances.
 
-The primary goal is to provide a testing utility that ensures response bodies can be inspected even when assertions on status codes fail, preventing loss of debugging information.
+The primary goal is to provide a testing utility that integrates request execution, status code validation, and response decoding into a single call, while ensuring that the full response body is logged if the status code check fails.
 
 ## Core Components
 
 ### 1. `rakudatest` Package
 
-- Create a new directory and package named `rakudatest`.
-- The package will contain all the testing helper functions.
-- It will have its own test file, `rakudatest_test.go`, to ensure the helpers work as expected.
+- A new package named `rakudatest` containing the test helper.
 
 ### 2. Core `Do` Function
 
-- **`Do(t *testing.T, h http.Handler, req *http.Request) (*http.Response, []byte)`**
-    - This will be the central function.
-    - It executes the request against the handler using `httptest.NewRecorder`.
-    - It reads the entire response body into a `[]byte` slice.
-    - It closes the response body to prevent resource leaks.
-    - It returns both the original `*http.Response` (with a now-closed body) and the `[]byte` slice of the body. This allows assertions on headers/status from the response object, and assertions on the body from the byte slice.
+- **`Do[T any](t *testing.T, h http.Handler, req *http.Request, wantStatusCode int, assertions ...ResponseAssertion) T`**
+    - This is the central generic function of the package.
+    - It executes an HTTP request against a handler.
+    - It validates that the response status code matches `wantStatusCode`. If it does not, it logs the entire response body and fails the test immediately via `t.Fatalf`.
+    - It executes one or more optional `ResponseAssertion` functions to allow for additional checks (e.g., on response headers) before the response body is decoded.
+    - It decodes the JSON response body into the specified generic type `T` and returns it.
+    - It correctly handles `204 No Content` responses by returning a zero value for `T` without attempting to decode the (empty) body.
 
-### 3. Request Builder Helpers (Functional Options)
+### 3. Response Assertion Helper
 
-- **`NewRequest(method, path string, options ...RequestOption) *http.Request`**
-    - Creates a new `*http.Request` for testing.
-- **`RequestOption` type: `func(*http.Request) error`**
-    - A functional option type to modify the request.
-- **Implement common options:**
-    - `WithBody(io.Reader)`: Sets the request body.
-    - `WithJSONBody(any)`: Marshals the given value to JSON and sets it as the body, also setting the `Content-Type` header to `application/json`.
-    - `WithHeader(key, value string)`: Sets a request header.
-    - `WithPathValue(key, value string)`: Adds a path value to the request context (requires Go 1.22+).
+- **`ResponseAssertion func(t *testing.T, res *http.Response, body []byte)`**
+    - A function type that allows for creating custom validation logic for the response.
+    - Since the `Do` function consumes the response body, this provides the necessary hook to inspect the `*http.Response` and the raw `body []byte` before the final JSON decoding step.
 
-### 4. Assertion Functions
+## Rationale for Design Changes
 
-These functions will be standalone and use the standard `testing` package.
+Through iterative feedback, the design was simplified to remove all request-side helpers (`RequestOption`, `With...` functions). The user is expected to construct the `*http.Request` using the standard library's `httptest.NewRequest` and modify it directly before passing it to the `Do` function. This avoids thin wrappers and keeps the helper's API surface minimal and focused. The addition of `ResponseAssertion` provides the necessary flexibility for response validation that was lost by consuming the response inside a single helper function.
 
-- **`AssertStatusCode(t *testing.T, res *http.Response, body []byte, want int)`**
-    - Checks if `res.StatusCode` matches `want`.
-    - If it fails, it will log the response body for easier debugging. This is a key requirement.
-- **`AssertHeader(t *testing.T, res *http.Response, key, want string)`**
-    - Checks for the presence and value of a response header.
-- **`AssertJSON[T any](t *testing.T, body []byte, want T, opts ...cmp.Option)`**
-    - Decodes the JSON `body` into a new variable of type `T`.
-    - Compares the decoded value with `want` using `cmp.DeepEqual` or `cmp.Equal`.
-    - The function will be generic.
-
-## Implementation Steps (TODO)
+## Implementation Steps
 
 1.  **Create `rakudatest/rakudatest.go`**:
-    -   Create the new directory and file.
-    -   Define the main `Do` function.
-    -   Implement the request builder `NewRequest` and `RequestOption` helpers (`WithJSONBody`, `WithHeader`, etc.).
-2.  **Implement Assertion Functions**:
-    -   Add `AssertStatusCode`, `AssertHeader`, and `AssertJSON` to `rakudatest/rakudatest.go`. Make sure `AssertStatusCode` logs the body on failure.
-3.  **Create Tests for the Helper (`rakudatest/rakudatest_test.go`)**:
-    -   Write tests to verify that `Do`, the request options, and the assertion helpers all work correctly.
-    -   Test a failing case to ensure the response body is logged.
-4.  **Refactor an Existing Test**:
-    -   Choose one existing test file (e.g., `builder_test.go` or `lift_test.go`).
-    -   Update a test case to use the new `rakudatest` helpers. This will demonstrate its usage and prove its utility.
-5.  **Update `TODO.md`**:
-    -   Transcribe these steps into `TODO.md` under a new `### rakudatest Test Helper` section.
+    -   Implement the generic `Do` function with integrated status checking, `ResponseAssertion` execution, and JSON decoding.
+2.  **Create Tests for the Helper (`rakudatest/rakudatest_test.go`)**:
+    -   Write tests to verify the complete functionality of the `Do` function, including success cases, status code mismatch failures, and the correct execution of `ResponseAssertion` functions.
+3.  **Refactor `lift_test.go`**:
+    -   Update `lift_test.go` to use the new `rakudatest.Do` function, demonstrating its ability to simplify test code.
+4.  **Update `TODO.md`**:
+    -   Transcribe these steps into `TODO.md` and mark them as complete upon finishing the implementation.
+    -   Move the feature to the "Implemented" section.
