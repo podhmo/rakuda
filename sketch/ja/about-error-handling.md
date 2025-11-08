@@ -8,6 +8,10 @@ liftみたいな関数が欲しい
 
 あとerrorをそのまま渡したいのだけど500のときにはloggerにだけ詳細を出力して外部には単にinternal server errorとかにしたい
 
+rfc-7876直書きは辛い
+
+-   https://github.com/podhmo/rakuda/pull/15#issue-3603403730
+
 真面目に作ったapi errorを都度ハンドリングしたくない
 
 - https://leapcell.io/blog/building-a-robust-error-handling-system-for-go-apis
