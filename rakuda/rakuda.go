@@ -1,6 +1,12 @@
 package rakuda
 
-import "net/http"
+import (
+	"net/http"
+	"path"
+)
+
+// Middleware is a function that wraps an http.Handler.
+type Middleware func(http.Handler) http.Handler
 
 type handlerRegistration struct {
 	method  string
@@ -10,7 +16,7 @@ type handlerRegistration struct {
 
 type node struct {
 	pattern     string
-	middlewares []func(http.Handler) http.Handler
+	middlewares []Middleware
 	handlers    []handlerRegistration
 	children    []*node
 }
@@ -35,6 +41,11 @@ func (b *Builder) registerHandler(method string, pattern string, handler http.Ha
 		pattern: pattern,
 		handler: handler,
 	})
+}
+
+// Use adds a middleware to the current builder's node.
+func (b *Builder) Use(middleware Middleware) {
+	b.node.middlewares = append(b.node.middlewares, middleware)
 }
 
 // Get registers a GET handler.
@@ -62,12 +73,43 @@ func (b *Builder) Patch(pattern string, handler http.Handler) {
 	b.registerHandler(http.MethodPatch, pattern, handler)
 }
 
+// Route creates a new routing group.
+func (b *Builder) Route(pattern string, fn func(b *Builder)) {
+	childNode := &node{
+		pattern: pattern,
+	}
+	b.node.children = append(b.node.children, childNode)
+	childBuilder := &Builder{node: childNode}
+	fn(childBuilder)
+}
+
 // Build creates a new http.Handler from the configured routes.
 // The returned handler is immutable.
 func (b *Builder) Build() http.Handler {
 	mux := http.NewServeMux()
-	for _, registration := range b.node.handlers {
-		mux.Handle(registration.method+" "+registration.pattern, registration.handler)
+	var traverse func(*node, string, []Middleware)
+	traverse = func(n *node, prefix string, middlewares []Middleware) {
+		// Combine middlewares from parent and current node
+		combinedMiddlewares := append([]Middleware{}, middlewares...)
+		combinedMiddlewares = append(combinedMiddlewares, n.middlewares...)
+
+		// Register handlers with combined middlewares
+		for _, reg := range n.handlers {
+			fullPattern := path.Join(prefix, reg.pattern)
+			handler := reg.handler
+			for i := len(combinedMiddlewares) - 1; i >= 0; i-- {
+				handler = combinedMiddlewares[i](handler)
+			}
+			mux.Handle(reg.method+" "+fullPattern, handler)
+		}
+
+		// Traverse children
+		for _, child := range n.children {
+			newPrefix := path.Join(prefix, child.pattern)
+			traverse(child, newPrefix, combinedMiddlewares)
+		}
 	}
+
+	traverse(b.node, "/", []Middleware{})
 	return mux
 }

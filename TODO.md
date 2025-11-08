@@ -27,28 +27,28 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] Implement `NewBuilder()` constructor
   - [x] Test: Route registration in any order produces consistent results
   - [x] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
-- [-] **Build Process with Tests**: Implement the `Build()` method
+- [x] **Build Process with Tests**: Implement the `Build()` method
   - [x] Test: Build creates immutable http.Handler
   - [x] Test: Order-independent route registration
-  - [ ] DFS traversal of configuration tree
-  - [ ] Context accumulation (path prefix and middleware chain)
-  - [ ] Handler assembly with middleware wrapping
+  - [x] DFS traversal of configuration tree
+  - [x] Context accumulation (path prefix and middleware chain)
+  - [x] Handler assembly with middleware wrapping
   - [x] Integration with `http.ServeMux`
-- [ ] **Middleware Support with Tests**: Implement middleware functionality
-  - [ ] Test: Global middleware application
-  - [ ] Test: Scoped middleware application
-  - [ ] Test: Middleware chain composition
-  - [ ] `Use()` method for registering middlewares
-  - [ ] Global middleware application
-  - [ ] Scoped middleware application
-  - [ ] Middleware chain composition
-- [ ] **Route Grouping with Tests**: Implement route grouping functionality
-  - [ ] Test: Nested route groups with path concatenation
-  - [ ] Test: Middleware inheritance in nested groups
-  - [ ] `Route(pattern, fn)` method for nested routes
+- [x] **Middleware Support with Tests**: Implement middleware functionality
+  - [x] Test: Global middleware application
+  - [x] Test: Scoped middleware application
+  - [x] Test: Middleware chain composition
+  - [x] `Use()` method for registering middlewares
+  - [x] Global middleware application
+  - [x] Scoped middleware application
+  - [x] Middleware chain composition
+- [-] **Route Grouping with Tests**: Implement route grouping functionality
+  - [x] Test: Nested route groups with path concatenation
+  - [x] Test: Middleware inheritance in nested groups
+  - [x] `Route(pattern, fn)` method for nested routes
   - [ ] `Group(fn)` method for middleware-only groups
-  - [ ] Proper path concatenation
-  - [ ] Middleware inheritance
+  - [x] Proper path concatenation
+  - [x] Middleware inheritance
 
 ### Example Applications
 - [ ] **Simple REST API example**: Demonstrate basic usage

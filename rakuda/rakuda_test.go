@@ -65,6 +65,98 @@ func TestRegisterHandler(t *testing.T) {
 	}
 }
 
+func TestMiddlewareAndGrouping(t *testing.T) {
+	// Define handlers
+	rootHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("root")) })
+	apiHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("api")) })
+	apiV1Handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("api-v1")) })
+
+	// Define middlewares
+	mw1 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("X-Middleware-1", "mw1")
+			next.ServeHTTP(w, r)
+		})
+	}
+	mw2 := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("X-Middleware-2", "mw2")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	// Build the router
+	b := NewBuilder()
+	b.Use(mw1)
+	b.Get("/root", rootHandler)
+
+	b.Route("/api", func(b *Builder) {
+		b.Use(mw2)
+		b.Get("/data", apiHandler)
+		b.Route("/v1", func(b *Builder) {
+			b.Get("/items", apiV1Handler)
+		})
+	})
+	router := b.Build()
+
+	// Table of tests
+	tests := []struct {
+		path         string
+		wantBody     string
+		wantHeaders  map[string]string
+		absentHeaders []string
+	}{
+		{
+			path:     "/root",
+			wantBody: "root",
+			wantHeaders: map[string]string{
+				"X-Middleware-1": "mw1",
+			},
+			absentHeaders: []string{"X-Middleware-2"},
+		},
+		{
+			path:     "/api/data",
+			wantBody: "api",
+			wantHeaders: map[string]string{
+				"X-Middleware-1": "mw1",
+				"X-Middleware-2": "mw2",
+			},
+		},
+		{
+			path:     "/api/v1/items",
+			wantBody: "api-v1",
+			wantHeaders: map[string]string{
+				"X-Middleware-1": "mw1",
+				"X-Middleware-2": "mw2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+
+			if got := rr.Body.String(); got != tt.wantBody {
+				t.Errorf("response body mismatch: got %q, want %q", got, tt.wantBody)
+			}
+
+			for key, val := range tt.wantHeaders {
+				if got := rr.Header().Get(key); got != val {
+					t.Errorf("response header %s mismatch: got %q, want %q", key, got, val)
+				}
+			}
+
+			for _, key := range tt.absentHeaders {
+				if got := rr.Header().Get(key); got != "" {
+					t.Errorf("unexpected header %s: got %q", key, got)
+				}
+			}
+		})
+	}
+}
+
 func TestBuildOrderIndependent(t *testing.T) {
 	// Define handlers
 	handler1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler1")) })
