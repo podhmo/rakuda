@@ -26,6 +26,7 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 - **Lift Function**:
     - [x] Implement `lift` function to convert `func(req) (data, error)` into `http.Handler`.
     - [x] Support custom status codes via `APIError` struct with a `StatusCode()` method.
+    - [x] Handle `(nil, nil)` returns: `204` for pointers, `[]` for slices, `{}` for maps.
 
 ## To Be Implemented
 
