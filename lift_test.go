@@ -18,7 +18,7 @@ func TestLift(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		action         any // func(*http.Request) (any, error)
+		action         func(*http.Request) (ResponseObject, error)
 		wantStatusCode int
 		wantResponse   ResponseObject
 	}{
@@ -59,9 +59,7 @@ func TestLift(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			responder := NewResponder()
-			// The type of action is `any`, so we need to cast it.
-			// This is a limitation of table-driven tests with generic functions.
-			handler := Lift(responder, tt.action.(func(*http.Request) (ResponseObject, error)))
+			handler := Lift(responder, tt.action)
 
 			req := httptest.NewRequest("GET", "/", nil)
 			got := rakudatest.Do[ResponseObject](t, handler, req, tt.wantStatusCode)
