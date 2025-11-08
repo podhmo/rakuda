@@ -102,6 +102,28 @@ b.Route("/api/v1", func(api *rakuda.Builder) {
 handler := b.Build()
 ```
 
+#### Order-Independent Configuration
+
+One of `rakuda`'s key features is its **order-independent API**. You can declare routes and middlewares in any order within the same scope without affecting the final behavior:
+
+```go
+// These two configurations produce identical results:
+
+// Configuration 1: middleware first
+b.Route("/api", func(api *rakuda.Builder) {
+    api.Use(authMiddleware)
+    api.Get("/users", listUsersHandler)
+})
+
+// Configuration 2: route first
+b.Route("/api", func(api *rakuda.Builder) {
+    api.Get("/users", listUsersHandler)
+    api.Use(authMiddleware)
+})
+```
+
+This is possible because the actual middleware chain is assembled during the `Build()` phase, not at the time of declaration. The builder collects all configuration declaratively and processes it consistently, regardless of the order in which you register routes and middlewares.
+
 ## Design Philosophy
 
 For detailed information about the design decisions and architecture, see [docs/router-design.md](./docs/router-design.md).
