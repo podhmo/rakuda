@@ -83,7 +83,7 @@ func WithStatusCode(r *http.Request, status int) *http.Request {
 }
 ```
 
-Internal, unexported functions `getLogger(ctx)` and `getStatusCode(ctx)` will be used to retrieve these values, providing sane defaults (`nil` for logger, `http.StatusOK` for status).
+Internal, unexported functions `getLogger(ctx)` and `getStatusCode(ctx)` will be used to retrieve these values, providing sane defaults (a default `slog.Logger` for the logger, and `http.StatusOK` for the status).
 
 #### 5.3. Responder Functions
 
@@ -104,8 +104,9 @@ import "net/http"
 // 3. Sets the "Content-Type" header to "application/json; charset=utf-8".
 // 4. Writes the HTTP status code to the response header.
 // 5. If data is not nil, it encodes the data to the response writer.
-// 6. If encoding fails, it retrieves the Logger from the context. If a logger
-//    exists, it logs the error with contextual information.
+// 6. If encoding fails, it retrieves the Logger from the context and logs the
+//    error with contextual information. A default logger is used if none is
+//    provided in the context.
 func JSON(w http.ResponseWriter, req *http.Request, data any) {
     // ... implementation ...
 }
