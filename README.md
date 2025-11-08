@@ -3,18 +3,16 @@
 `rakuda` is an HTTP router for Go, designed around a core philosophy of **compile-time safety** and **predictable lifecycle management**. It enforces a strict separation between route configuration and request handling through a dedicated `Builder` pattern, eliminating an entire class of runtime errors.
 
 The name "rakuda" has two meanings:
-- 「楽だ」(rakuda) - "It's easy" in Japanese
+- 「楽だ」(rakuda) - "Effortless" or "comfortable" in Japanese
 - 「ラクダ」(rakuda) - "Camel" in Japanese 🐪
 
 🚧 This library is currently under development.
 
 ## Features
 
-- **Type Safety**: The router's lifecycle is enforced by the Go compiler. It's impossible to compile code that uses a router before it has been explicitly built.
 - **Predictable Lifecycle**: Configuration of routes is completely separate from serving traffic. The router's state is immutable once built.
 - **Declarative, Order-Independent API**: Declare routes and middlewares in any order without affecting final behavior.
 - **Standard Library First**: Leverages `net/http` package, including path parameter support introduced in Go 1.22, for maximum compatibility and minimal dependencies.
-- **Flexible Middleware Scoping**: Apply middlewares globally, to specific route groups, or to nested groups.
 - **Tree-Based Configuration**: Internal tree structure naturally maps to hierarchical RESTful API routes.
 
 ## Quick Start
