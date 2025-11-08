@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rakuda SPA Example</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐪 Rakuda SPA Example</h1>
+            <p>A Single Page Application with go:embed and CORS support</p>
+        </header>
+
+        <main>
+            <section class="api-section">
+                <h2>API Endpoints</h2>
+                <div class="button-group">
+                    <button onclick="fetchPublicData()">Fetch Public Data</button>
+                    <button onclick="fetchUserData()">Fetch User Data</button>
+                    <button onclick="fetchAdminData()">Fetch Admin Data (CORS test)</button>
+                </div>
+                <div id="result" class="result"></div>
+            </section>
+
+            <section class="info-section">
+                <h2>Features</h2>
+                <ul>
+                    <li>Static files served with go:embed</li>
+                    <li>CORS middleware for API routes</li>
+                    <li>Multiple route groups with scoped middleware</li>
+                    <li>JSON API responses</li>
+                    <li>Path parameter support</li>
+                </ul>
+            </section>
+
+            <section class="user-section">
+                <h2>User Profile</h2>
+                <input type="text" id="userId" placeholder="Enter user ID" value="123">
+                <button onclick="fetchUserProfile()">Get User Profile</button>
+                <div id="userResult" class="result"></div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Built with <a href="https://github.com/podhmo/rakuda" target="_blank">rakuda</a> - Type-safe HTTP router for Go</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
