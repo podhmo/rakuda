@@ -10,8 +10,8 @@ import (
 )
 
 func TestAPI(t *testing.T) {
-	handler := newRouter()
-	ts := httptest.NewServer(handler)
+	builder := newRouter()
+	ts := httptest.NewServer(builder.Build())
 	defer ts.Close()
 
 	tests := []struct {

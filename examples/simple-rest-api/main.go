@@ -8,7 +8,12 @@ import (
 	"github.com/podhmo/rakuda"
 )
 
-func newRouter() http.Handler {
+import (
+	"flag"
+	"os"
+)
+
+func newRouter() *rakuda.Builder {
 	builder := rakuda.NewBuilder()
 	responder := rakuda.NewResponder()
 
@@ -23,14 +28,29 @@ func newRouter() http.Handler {
 		responder.JSON(w, r, map[string]string{"message": fmt.Sprintf("hello %s", name)})
 	}))
 
-	return builder.Build()
+	return builder
 }
 
 func main() {
-	handler := newRouter()
-	port := 8080
-	log.Printf("listening on :%d", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), handler); err != nil {
+	if err := run(); err != nil {
 		log.Fatalf("!%+v", err)
 	}
+}
+
+func run() error {
+	var (
+		proutes = flag.Bool("proutes", false, "print routes")
+		port    = flag.Int("port", 8080, "port")
+	)
+	flag.Parse()
+
+	builder := newRouter()
+	if *proutes {
+		rakuda.PrintRoutes(os.Stdout, builder)
+		return nil
+	}
+
+	handler := builder.Build()
+	log.Printf("listening on :%d", *port)
+	return http.ListenAndServe(fmt.Sprintf(":%d", *port), handler)
 }
