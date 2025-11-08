@@ -45,7 +45,7 @@ func TestDo_NoContent(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	got := Do(t, handler, req, http.StatusNoContent)
+	got := Do[any](t, handler, req, http.StatusNoContent)
 
 	if got != nil {
 		t.Errorf("expected a nil response for 204 No Content, but got %+v", got)
