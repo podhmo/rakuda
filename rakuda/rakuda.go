@@ -4,6 +4,7 @@ import "net/http"
 
 type handlerRegistration struct {
 	method  string
+	pattern string
 	handler http.Handler
 }
 
@@ -28,41 +29,45 @@ func NewBuilder() *Builder {
 	}
 }
 
-func (b *Builder) registerHandler(method string, handler http.Handler) {
+func (b *Builder) registerHandler(method string, pattern string, handler http.Handler) {
 	b.node.handlers = append(b.node.handlers, handlerRegistration{
 		method:  method,
+		pattern: pattern,
 		handler: handler,
 	})
 }
 
 // Get registers a GET handler.
-func (b *Builder) Get(handler http.Handler) {
-	b.registerHandler(http.MethodGet, handler)
+func (b *Builder) Get(pattern string, handler http.Handler) {
+	b.registerHandler(http.MethodGet, pattern, handler)
 }
 
 // Post registers a POST handler.
-func (b *Builder) Post(handler http.Handler) {
-	b.registerHandler(http.MethodPost, handler)
+func (b *Builder) Post(pattern string, handler http.Handler) {
+	b.registerHandler(http.MethodPost, pattern, handler)
 }
 
 // Put registers a PUT handler.
-func (b *Builder) Put(handler http.Handler) {
-	b.registerHandler(http.MethodPut, handler)
+func (b *Builder) Put(pattern string, handler http.Handler) {
+	b.registerHandler(http.MethodPut, pattern, handler)
 }
 
 // Delete registers a DELETE handler.
-func (b *Builder) Delete(handler http.Handler) {
-	b.registerHandler(http.MethodDelete, handler)
+func (b *Builder) Delete(pattern string, handler http.Handler) {
+	b.registerHandler(http.MethodDelete, pattern, handler)
 }
 
 // Patch registers a PATCH handler.
-func (b *Builder) Patch(handler http.Handler) {
-	b.registerHandler(http.MethodPatch, handler)
+func (b *Builder) Patch(pattern string, handler http.Handler) {
+	b.registerHandler(http.MethodPatch, pattern, handler)
 }
 
 // Build creates a new http.Handler from the configured routes.
 // The returned handler is immutable.
 func (b *Builder) Build() http.Handler {
-	// For now, this is a stub.
-	return http.NewServeMux()
+	mux := http.NewServeMux()
+	for _, registration := range b.node.handlers {
+		mux.Handle(registration.method+" "+registration.pattern, registration.handler)
+	}
+	return mux
 }

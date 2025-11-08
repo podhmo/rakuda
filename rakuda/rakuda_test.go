@@ -2,6 +2,7 @@ package rakuda
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -21,17 +22,18 @@ func TestNewBuilder(t *testing.T) {
 
 func TestRegisterHandler(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	pattern := "/test"
 
 	tests := []struct {
 		name           string
 		register       func(*Builder)
 		expectedMethod string
 	}{
-		{"Get", func(b *Builder) { b.Get(handler) }, http.MethodGet},
-		{"Post", func(b *Builder) { b.Post(handler) }, http.MethodPost},
-		{"Put", func(b *Builder) { b.Put(handler) }, http.MethodPut},
-		{"Delete", func(b *Builder) { b.Delete(handler) }, http.MethodDelete},
-		{"Patch", func(b *Builder) { b.Patch(handler) }, http.MethodPatch},
+		{"Get", func(b *Builder) { b.Get(pattern, handler) }, http.MethodGet},
+		{"Post", func(b *Builder) { b.Post(pattern, handler) }, http.MethodPost},
+		{"Put", func(b *Builder) { b.Put(pattern, handler) }, http.MethodPut},
+		{"Delete", func(b *Builder) { b.Delete(pattern, handler) }, http.MethodDelete},
+		{"Patch", func(b *Builder) { b.Patch(pattern, handler) }, http.MethodPatch},
 	}
 
 	for _, tt := range tests {
@@ -42,6 +44,7 @@ func TestRegisterHandler(t *testing.T) {
 			expected := []handlerRegistration{
 				{
 					method:  tt.expectedMethod,
+					pattern: pattern,
 					handler: handler,
 				},
 			}
@@ -57,6 +60,54 @@ func TestRegisterHandler(t *testing.T) {
 			want := reflect.ValueOf(handler).Pointer()
 			if got != want {
 				t.Errorf("handler function pointer mismatch: got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestBuildOrderIndependent(t *testing.T) {
+	// Define handlers
+	handler1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler1")) })
+	handler2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler2")) })
+
+	// Builder 1: Register in one order
+	b1 := NewBuilder()
+	b1.Get("/one", handler1)
+	b1.Post("/two", handler2)
+	router1 := b1.Build()
+
+	// Builder 2: Register in the opposite order
+	b2 := NewBuilder()
+	b2.Post("/two", handler2)
+	b2.Get("/one", handler1)
+	router2 := b2.Build()
+
+	// Table of tests
+	tests := []struct {
+		method string
+		path   string
+		want   string
+	}{
+		{http.MethodGet, "/one", "handler1"},
+		{http.MethodPost, "/two", "handler2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method+tt.path, func(t *testing.T) {
+			// Test router 1
+			req1 := httptest.NewRequest(tt.method, tt.path, nil)
+			rr1 := httptest.NewRecorder()
+			router1.ServeHTTP(rr1, req1)
+			if got := rr1.Body.String(); got != tt.want {
+				t.Errorf("router1 response mismatch: got %q, want %q", got, tt.want)
+			}
+
+			// Test router 2
+			req2 := httptest.NewRequest(tt.method, tt.path, nil)
+			rr2 := httptest.NewRecorder()
+			router2.ServeHTTP(rr2, req2)
+			if got := rr2.Body.String(); got != tt.want {
+				t.Errorf("router2 response mismatch: got %q, want %q", got, tt.want)
 			}
 		})
 	}
