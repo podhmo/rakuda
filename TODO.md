@@ -72,6 +72,12 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] `Build()` method returns an error on conflict when configured to do so.
   - [x] Add tests for both `Warn` and `Error` behaviors.
 
+### SSE Responder
+- [x] **Server-Sent Events (SSE) Support**: Add a responder for streaming data.
+  - [x] `SSE` function to handle `text/event-stream` responses.
+  - [x] `Event` struct for sending named events.
+  - [x] Add tests for SSE functionality.
+
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage
 - [x] **Middleware demonstration**: Show global and scoped middleware
