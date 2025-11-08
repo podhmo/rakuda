@@ -220,7 +220,212 @@ func TestGetUserHandler_NotFound(t *testing.T) {
 }
 ```
 
-### 7. Extensibility
+### 7. Error Response Handling
+
+To standardize error responses across applications, the `responder` package will support RFC 7807 (Problem Details for HTTP APIs), which defines a machine-readable format for HTTP API errors.
+
+#### 7.1. Problem Details Type
+
+```go
+package responder
+
+// ProblemDetail represents an RFC 7807 Problem Details object.
+// It provides a standard, extensible way to describe HTTP API errors.
+type ProblemDetail struct {
+    // Type is a URI reference that identifies the problem type.
+    // When dereferenced, it should provide human-readable documentation.
+    // Defaults to "about:blank" if not provided.
+    Type string `json:"type,omitempty"`
+
+    // Title is a short, human-readable summary of the problem type.
+    // It SHOULD NOT change between occurrences of the problem, except for localization.
+    Title string `json:"title,omitempty"`
+
+    // Status is the HTTP status code for this occurrence of the problem.
+    Status int `json:"status,omitempty"`
+
+    // Detail is a human-readable explanation specific to this occurrence.
+    Detail string `json:"detail,omitempty"`
+
+    // Instance is a URI reference that identifies the specific occurrence.
+    // It may or may not yield further information if dereferenced.
+    Instance string `json:"instance,omitempty"`
+
+    // Extensions allows for additional problem-specific information.
+    // Example: validation errors, trace IDs, etc.
+    Extensions map[string]any `json:"-"`
+}
+
+// MarshalJSON implements custom JSON marshaling to include extensions at the top level.
+func (p *ProblemDetail) MarshalJSON() ([]byte, error) {
+    // ... implementation that merges Extensions into the top level ...
+}
+```
+
+#### 7.2. Error Response Function
+
+```go
+package responder
+
+// Problem sends an RFC 7807 Problem Details error response.
+//
+// It automatically:
+// - Sets Content-Type to "application/problem+json"
+// - Uses the Status field from ProblemDetail (or context status if not set)
+// - Defaults Type to "about:blank" if not provided
+// - Logs the error if a logger is available in the context
+//
+// Example usage:
+//   problem := &responder.ProblemDetail{
+//       Type:   "https://example.com/probs/validation-error",
+//       Title:  "Validation Error",
+//       Status: http.StatusBadRequest,
+//       Detail: "The 'email' field is required",
+//       Extensions: map[string]any{
+//           "field": "email",
+//       },
+//   }
+//   responder.Problem(w, r, problem)
+func Problem(w http.ResponseWriter, req *http.Request, detail *ProblemDetail) {
+    // ... implementation ...
+}
+```
+
+#### 7.3. Usage Example
+
+```go
+func createUserHandler(w http.ResponseWriter, r *http.Request) {
+    var input CreateUserInput
+    if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+        responder.Problem(w, r, &responder.ProblemDetail{
+            Type:   "https://api.example.com/probs/invalid-request",
+            Title:  "Invalid Request",
+            Status: http.StatusBadRequest,
+            Detail: "Request body contains invalid JSON",
+        })
+        return
+    }
+
+    if input.Email == "" {
+        responder.Problem(w, r, &responder.ProblemDetail{
+            Type:   "https://api.example.com/probs/validation-error",
+            Title:  "Validation Error",
+            Status: http.StatusBadRequest,
+            Detail: "The 'email' field is required",
+            Extensions: map[string]any{
+                "field": "email",
+            },
+        })
+        return
+    }
+
+    // ... create user logic ...
+    responder.JSON(w, r, user)
+}
+```
+
+### 8. JSON Output Customization
+
+By default, the `JSON` function uses the standard `json.Encoder` without indentation, which is optimal for production environments (minimal payload size). However, during development or debugging, pretty-printed JSON may be desirable.
+
+#### 8.1. Encoder Configuration via Context
+
+```go
+package responder
+
+import "encoding/json"
+
+// JSONConfig holds configuration for JSON encoding.
+type JSONConfig struct {
+    // Indent specifies the indentation string for pretty-printing.
+    // Empty string (default) means no indentation.
+    Indent string
+
+    // Prefix specifies the prefix string for pretty-printing.
+    // Typically empty.
+    Prefix string
+
+    // EscapeHTML specifies whether to escape HTML characters.
+    // Default is true (encoder default).
+    EscapeHTML bool
+}
+
+// WithJSONConfig returns a new request with the provided JSONConfig
+// stored in its context. This allows per-request customization of
+// JSON encoding behavior.
+func WithJSONConfig(r *http.Request, config *JSONConfig) *http.Request {
+    // ... implementation using context.WithValue ...
+}
+```
+
+#### 8.2. Updated JSON Function
+
+The `JSON` function will be updated to check for a `JSONConfig` in the context:
+
+```go
+func JSON(w http.ResponseWriter, req *http.Request, data any) {
+    // ... existing cancellation and status code checks ...
+
+    w.Header().Set("Content-Type", "application/json; charset=utf-8")
+    w.WriteHeader(status)
+
+    if data == nil {
+        return
+    }
+
+    encoder := json.NewEncoder(w)
+
+    // Apply custom configuration if available
+    if config := getJSONConfig(req.Context()); config != nil {
+        encoder.SetIndent(config.Prefix, config.Indent)
+        encoder.SetEscapeHTML(config.EscapeHTML)
+    }
+
+    if err := encoder.Encode(data); err != nil {
+        if logger := getLogger(req.Context()); logger != nil {
+            logger.ErrorContext(req.Context(), "failed to encode JSON response", "error", err)
+        }
+    }
+}
+```
+
+#### 8.3. Usage Examples
+
+**Development/Debug Mode:**
+
+```go
+func DebugMiddleware() func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            // Enable pretty-printing for all responses
+            config := &responder.JSONConfig{
+                Indent:     "  ", // 2-space indentation
+                EscapeHTML: false,
+            }
+            r = responder.WithJSONConfig(r, config)
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+```
+
+**Per-Request Pretty-Printing:**
+
+```go
+func getUserHandler(w http.ResponseWriter, r *http.Request) {
+    // Enable pretty-printing if ?pretty=true query parameter is present
+    if r.URL.Query().Get("pretty") == "true" {
+        r = responder.WithJSONConfig(r, &responder.JSONConfig{
+            Indent: "  ",
+        })
+    }
+
+    user := findUser(r.Context())
+    responder.JSON(w, r, user)
+}
+```
+
+### 9. Extensibility
 
 This design is easily extensible. Other responder functions can be added following the same pattern:
 
