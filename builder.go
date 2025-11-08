@@ -1,9 +1,9 @@
 package rakuda
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"path"
 )
 
@@ -36,15 +36,18 @@ type node struct {
 	children []*node
 }
 
-// ConflictBehavior defines how the builder should handle route conflicts.
-type ConflictBehavior int
+// OnConflictFunc defines a function to be called when a route conflict is detected.
+// It receives the builder and the conflicting route key. It can return an error
+// to halt the build process. If it returns nil, the conflict is ignored and the
+// duplicate route is not registered.
+type OnConflictFunc func(b *Builder, routeKey string) error
 
-const (
-	// Warn prints a warning to the standard logger when a conflict is detected.
-	Warn ConflictBehavior = iota
-	// Error makes the Build method return an error when a conflict is detected.
-	Error
-)
+// DefaultOnConflict is the default conflict handler. It logs a warning and
+// returns nil, allowing the build process to continue.
+func DefaultOnConflict(b *Builder, routeKey string) error {
+	b.Logger.Warn("route conflict", "route", routeKey)
+	return nil
+}
 
 // Builder is the configuration object for the router.
 // It is used to define routes and middlewares.
@@ -52,14 +55,16 @@ const (
 type Builder struct {
 	node            *node
 	notFoundHandler http.Handler
-	OnConflict      ConflictBehavior
+	OnConflict      OnConflictFunc
+	Logger          *slog.Logger
 }
 
 // NewBuilder creates a new Builder instance.
 func NewBuilder() *Builder {
 	return &Builder{
 		node:       &node{},
-		OnConflict: Warn,
+		OnConflict: DefaultOnConflict,
+		Logger:     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 }
 
@@ -214,13 +219,10 @@ func (b *Builder) Build() (http.Handler, error) {
 				routeKey := ha.method + " " + fullPattern
 
 				if _, exists := registered[routeKey]; exists {
-					switch b.OnConflict {
-					case Error:
-						return fmt.Errorf("route conflict: %s", routeKey)
-					case Warn:
-						log.Printf("warning: route conflict: %s", routeKey)
-						continue // Skip registration
+					if err := b.OnConflict(b, routeKey); err != nil {
+						return err
 					}
+					continue // Skip registration
 				}
 				registered[routeKey] = struct{}{}
 

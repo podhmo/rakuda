@@ -1,6 +1,7 @@
 package rakuda
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -248,9 +249,11 @@ func TestConflictHandling(t *testing.T) {
 		}
 	})
 
-	t.Run("ErrorOnConflict", func(t *testing.T) {
+	t.Run("ErrorOnConflictWithCustomFunc", func(t *testing.T) {
 		b := NewBuilder()
-		b.OnConflict = Error
+		b.OnConflict = func(b *Builder, routeKey string) error {
+			return errors.New("custom conflict error")
+		}
 		b.Get("/conflict", handler1)
 		b.Get("/conflict", handler2)
 
@@ -258,30 +261,29 @@ func TestConflictHandling(t *testing.T) {
 		if err == nil {
 			t.Fatal("Expected an error, but got nil")
 		}
-		expectedErr := "route conflict: GET /conflict"
+		expectedErr := "custom conflict error"
 		if err.Error() != expectedErr {
 			t.Errorf("Error message mismatch:\ngot:  %q\nwant: %q", err.Error(), expectedErr)
 		}
 	})
 
-	t.Run("WarnOnConflict", func(t *testing.T) {
-		// This test is limited in its ability to assert that a log was printed.
-		// We will primarily check that no error is returned.
+	t.Run("DefaultWarningOnConflict", func(t *testing.T) {
+		// This test primarily checks that no error is returned with the default behavior.
+		// A more robust test would capture log output.
 		b := NewBuilder()
-		b.OnConflict = Warn
 		b.Get("/conflict", handler1)
 		b.Get("/conflict", handler2)
 
-		// A more robust test would involve capturing log output,
-		// but for this case, we'll ensure it doesn't panic or error out.
 		if _, err := b.Build(); err != nil {
-			t.Errorf("Expected no error for Warn mode, but got: %v", err)
+			t.Errorf("Expected no error for default warn behavior, but got: %v", err)
 		}
 	})
 
-	t.Run("ConflictInNestedRoute", func(t *testing.T) {
+	t.Run("ConflictInNestedRouteWithError", func(t *testing.T) {
 		b := NewBuilder()
-		b.OnConflict = Error
+		b.OnConflict = func(b *Builder, routeKey string) error {
+			return errors.New("nested conflict")
+		}
 		b.Route("/api", func(b *Builder) {
 			b.Get("/users", handler1)
 		})
@@ -291,7 +293,7 @@ func TestConflictHandling(t *testing.T) {
 		if err == nil {
 			t.Fatal("Expected an error for nested conflict, but got nil")
 		}
-		expectedErr := "route conflict: GET /api/users"
+		expectedErr := "nested conflict"
 		if err.Error() != expectedErr {
 			t.Errorf("Error message mismatch for nested conflict:\ngot:  %q\nwant: %q", err.Error(), expectedErr)
 		}
