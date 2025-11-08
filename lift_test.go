@@ -94,7 +94,7 @@ func TestLift_NilNil(t *testing.T) {
 		Message string `json:"message"`
 	}
 
-	t.Run("nil data, nil error (generic type is pointer)", func(t *testing.T) {
+	t.Run("nil pointer", func(t *testing.T) {
 		responder := NewResponder()
 		action := func(r *http.Request) (*ResponseObject, error) {
 			return nil, nil
@@ -121,7 +121,7 @@ func TestLift_NilNil(t *testing.T) {
 		}
 	})
 
-	t.Run("nil slice, nil error", func(t *testing.T) {
+	t.Run("nil slice", func(t *testing.T) {
 		responder := NewResponder()
 		action := func(r *http.Request) ([]ResponseObject, error) {
 			return nil, nil
@@ -135,16 +135,49 @@ func TestLift_NilNil(t *testing.T) {
 		resp := w.Result()
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusNoContent {
-			t.Errorf("expected status code %d, got %d", http.StatusNoContent, resp.StatusCode)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("failed to read response body: %v", err)
 		}
-		if len(body) > 0 {
-			t.Errorf("expected empty body, but got %q", string(body))
+
+		want := `[]`
+		got := strings.TrimSpace(string(body))
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("response body mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("nil map", func(t *testing.T) {
+		responder := NewResponder()
+		action := func(r *http.Request) (map[string]ResponseObject, error) {
+			return nil, nil
+		}
+		handler := Lift(responder, action)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("failed to read response body: %v", err)
+		}
+
+		want := `{}`
+		got := strings.TrimSpace(string(body))
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("response body mismatch (-want +got):\n%s", diff)
 		}
 	})
 }
