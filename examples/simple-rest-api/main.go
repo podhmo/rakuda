@@ -48,7 +48,10 @@ func run() error {
 		return nil
 	}
 
-	handler := builder.Build()
+	handler, err := builder.Build()
+	if err != nil {
+		return err
+	}
 	log.Printf("listening on :%d", *port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", *port), handler)
 }

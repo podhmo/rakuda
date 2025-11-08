@@ -94,14 +94,20 @@ func TestOrderIndependence(t *testing.T) {
 			b.Get("/handler", handler)
 			b.Use(mw)
 		})
-		router1 := b1.Build()
+		router1, err := b1.Build()
+		if err != nil {
+			t.Fatalf("b1.Build() failed: %v", err)
+		}
 
 		b2 := NewBuilder()
 		b2.Route("/api", func(b *Builder) {
 			b.Use(mw)
 			b.Get("/handler", handler)
 		})
-		router2 := b2.Build()
+		router2, err := b2.Build()
+		if err != nil {
+			t.Fatalf("b2.Build() failed: %v", err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/api/handler", nil)
 		rr1 := httptest.NewRecorder()
@@ -126,14 +132,20 @@ func TestOrderIndependence(t *testing.T) {
 			b.Get("/handler", handler)
 		})
 		b1.Use(topLevelMw) // Applied after
-		router1 := b1.Build()
+		router1, err := b1.Build()
+		if err != nil {
+			t.Fatalf("b1.Build() failed: %v", err)
+		}
 
 		b2 := NewBuilder()
 		b2.Use(topLevelMw) // Applied before
 		b2.Route("/api", func(b *Builder) {
 			b.Get("/handler", handler)
 		})
-		router2 := b2.Build()
+		router2, err := b2.Build()
+		if err != nil {
+			t.Fatalf("b2.Build() failed: %v", err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/api/handler", nil)
 		rr1 := httptest.NewRecorder()
@@ -172,7 +184,10 @@ func TestOrderIndependence(t *testing.T) {
 			b.Get("/data", parentHandler)
 			b.Use(parentMw)
 		})
-		router1 := b1.Build()
+		router1, err := b1.Build()
+		if err != nil {
+			t.Fatalf("b1.Build() failed: %v", err)
+		}
 
 		b2 := NewBuilder()
 		b2.Route("/api", func(b *Builder) {
@@ -183,7 +198,10 @@ func TestOrderIndependence(t *testing.T) {
 				b.Get("/items", nestedHandler)
 			})
 		})
-		router2 := b2.Build()
+		router2, err := b2.Build()
+		if err != nil {
+			t.Fatalf("b2.Build() failed: %v", err)
+		}
 
 		// Test parent
 		reqParent := httptest.NewRequest(http.MethodGet, "/api/data", nil)
@@ -211,6 +229,71 @@ func TestOrderIndependence(t *testing.T) {
 		}
 		if rrNested1.Header().Get("X-Nested") != "nested-mw" {
 			t.Errorf("Expected nested middleware to be applied")
+		}
+	})
+}
+
+func TestConflictHandling(t *testing.T) {
+	handler1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler1")) })
+	handler2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler2")) })
+
+	t.Run("NoErrorOnNoConflict", func(t *testing.T) {
+		b := NewBuilder()
+		b.Get("/path1", handler1)
+		b.Post("/path1", handler1)
+		b.Get("/path2", handler1)
+
+		if _, err := b.Build(); err != nil {
+			t.Errorf("Expected no error, but got: %v", err)
+		}
+	})
+
+	t.Run("ErrorOnConflict", func(t *testing.T) {
+		b := NewBuilder()
+		b.OnConflict = Error
+		b.Get("/conflict", handler1)
+		b.Get("/conflict", handler2)
+
+		_, err := b.Build()
+		if err == nil {
+			t.Fatal("Expected an error, but got nil")
+		}
+		expectedErr := "route conflict: GET /conflict"
+		if err.Error() != expectedErr {
+			t.Errorf("Error message mismatch:\ngot:  %q\nwant: %q", err.Error(), expectedErr)
+		}
+	})
+
+	t.Run("WarnOnConflict", func(t *testing.T) {
+		// This test is limited in its ability to assert that a log was printed.
+		// We will primarily check that no error is returned.
+		b := NewBuilder()
+		b.OnConflict = Warn
+		b.Get("/conflict", handler1)
+		b.Get("/conflict", handler2)
+
+		// A more robust test would involve capturing log output,
+		// but for this case, we'll ensure it doesn't panic or error out.
+		if _, err := b.Build(); err != nil {
+			t.Errorf("Expected no error for Warn mode, but got: %v", err)
+		}
+	})
+
+	t.Run("ConflictInNestedRoute", func(t *testing.T) {
+		b := NewBuilder()
+		b.OnConflict = Error
+		b.Route("/api", func(b *Builder) {
+			b.Get("/users", handler1)
+		})
+		b.Get("/api/users", handler2) // This creates the conflict
+
+		_, err := b.Build()
+		if err == nil {
+			t.Fatal("Expected an error for nested conflict, but got nil")
+		}
+		expectedErr := "route conflict: GET /api/users"
+		if err.Error() != expectedErr {
+			t.Errorf("Error message mismatch for nested conflict:\ngot:  %q\nwant: %q", err.Error(), expectedErr)
 		}
 	})
 }
@@ -292,7 +375,10 @@ func TestGroup(t *testing.T) {
 			b.Get("/handler2", handler2)
 		})
 	})
-	router := b.Build()
+	router, err := b.Build()
+	if err != nil {
+		t.Fatalf("b.Build() failed: %v", err)
+	}
 
 	// --- Verification ---
 	// Test handler1
@@ -343,7 +429,10 @@ func TestNotFoundHandler(t *testing.T) {
 	t.Run("DefaultNotFound", func(t *testing.T) {
 		b := NewBuilder()
 		b.Get("/existing", existingHandler)
-		router := b.Build()
+		router, err := b.Build()
+		if err != nil {
+			t.Fatalf("b.Build() failed: %v", err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/not-found", nil)
 		rr := httptest.NewRecorder()
@@ -367,7 +456,10 @@ func TestNotFoundHandler(t *testing.T) {
 		b := NewBuilder()
 		b.Get("/existing", existingHandler)
 		b.NotFound(customNotFoundHandler)
-		router := b.Build()
+		router, err := b.Build()
+		if err != nil {
+			t.Fatalf("b.Build() failed: %v", err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/not-found", nil)
 		rr := httptest.NewRecorder()
@@ -385,7 +477,10 @@ func TestNotFoundHandler(t *testing.T) {
 		b := NewBuilder()
 		b.Get("/existing", existingHandler)
 		b.NotFound(customNotFoundHandler) // Should not be called
-		router := b.Build()
+		router, err := b.Build()
+		if err != nil {
+			t.Fatalf("b.Build() failed: %v", err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/existing", nil)
 		rr := httptest.NewRecorder()
@@ -406,7 +501,10 @@ func TestNotFoundHandler(t *testing.T) {
 			w.Write([]byte("root"))
 		}))
 		b.NotFound(customNotFoundHandler)
-		router := b.Build()
+		router, err := b.Build()
+		if err != nil {
+			t.Fatalf("b.Build() failed: %v", err)
+		}
 
 		// 1. Test the root path `GET /`
 		reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)

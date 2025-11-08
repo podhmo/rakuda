@@ -25,7 +25,11 @@ func newRouter() http.Handler {
 		panic("something went wrong")
 	}))
 
-	return builder.Build()
+	handler, err := builder.Build()
+	if err != nil {
+		panic(err) // In a real app, you'd handle this more gracefully.
+	}
+	return handler
 }
 
 func main() {
