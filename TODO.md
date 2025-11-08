@@ -63,3 +63,7 @@ The key design principle is the **two-stage separation**: configuration stage (B
 - [x] **Simple REST API example**: Demonstrate basic usage
 - [ ] **Middleware demonstration**: Show global and scoped middleware
 - [ ] **Nested groups example**: Show route grouping patterns
+
+### CLI
+- [x] **proutes utility**: Add a utility to display registered handlers.
+    - [x] Add `-proutes` flag to the example application.

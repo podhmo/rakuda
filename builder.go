@@ -104,6 +104,41 @@ func (b *Builder) Group(fn func(b *Builder)) {
 	fn(childBuilder)
 }
 
+// Walk traverses the routing tree and calls the provided function for each registered handler.
+// The traversal is done in DFS order.
+func (b *Builder) Walk(fn func(method string, pattern string)) {
+	var traverse func(*node, string, []Middleware)
+	traverse = func(n *node, prefix string, inheritedMiddlewares []Middleware) {
+		// Phase 1: Collect middlewares for the current node.
+		var nodeMiddlewares []Middleware
+		for _, a := range n.actions {
+			if ma, ok := a.(middlewareAction); ok {
+				nodeMiddlewares = append(nodeMiddlewares, ma.middleware)
+			}
+		}
+
+		// Combine inherited middlewares with the current node's middlewares.
+		combinedMiddlewares := append([]Middleware{}, inheritedMiddlewares...)
+		combinedMiddlewares = append(combinedMiddlewares, nodeMiddlewares...)
+
+		// Phase 2: call fn for each handler.
+		for _, a := range n.actions {
+			if ha, ok := a.(handlerAction); ok {
+				fullPattern := path.Join(prefix, ha.pattern)
+				fn(ha.method, fullPattern)
+			}
+		}
+
+		// Phase 3: Traverse children.
+		for _, child := range n.children {
+			newPrefix := path.Join(prefix, child.pattern)
+			traverse(child, newPrefix, combinedMiddlewares)
+		}
+	}
+
+	traverse(b.node, "/", []Middleware{})
+}
+
 // Build creates a new http.Handler from the configured routes.
 // The returned handler is immutable.
 func (b *Builder) Build() http.Handler {

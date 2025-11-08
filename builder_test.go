@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -212,6 +213,56 @@ func TestOrderIndependence(t *testing.T) {
 			t.Errorf("Expected nested middleware to be applied")
 		}
 	})
+}
+
+func TestWalkAndPrintRoutes(t *testing.T) {
+	b := NewBuilder()
+	nullHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+
+	// Define a simple route structure
+	b.Get("/a", nullHandler)
+	b.Post("/b", nullHandler)
+	b.Route("/v1", func(b *Builder) {
+		b.Get("/users", nullHandler)
+		b.Group(func(b *Builder) {
+			b.Put("/users/{id}", nullHandler)
+		})
+	})
+
+	// 1. Test Walk
+	var walkedRoutes [][2]string
+	b.Walk(func(method, pattern string) {
+		walkedRoutes = append(walkedRoutes, [2]string{method, pattern})
+	})
+
+	expectedWalk := [][2]string{
+		{http.MethodGet, "/a"},
+		{http.MethodPost, "/b"},
+		{http.MethodGet, "/v1/users"},
+		{http.MethodPut, "/v1/users/{id}"},
+	}
+	if diff := cmp.Diff(expectedWalk, walkedRoutes); diff != "" {
+		t.Errorf("Walk() mismatch (-want +got):\n%s", diff)
+	}
+
+	// 2. Test PrintRoutes
+	var buf strings.Builder
+	PrintRoutes(&buf, b)
+	got := buf.String()
+	want := `
+GET   /a
+POST  /b
+GET   /v1/users
+PUT   /v1/users/{id}
+`
+	// Normalize whitespace for comparison
+	normalize := func(s string) string {
+		return strings.TrimSpace(strings.ReplaceAll(s, "\t", "  "))
+	}
+
+	if diff := cmp.Diff(normalize(want), normalize(got)); diff != "" {
+		t.Errorf("PrintRoutes() mismatch (-want +got):\n%s", diff)
+	}
 }
 
 func TestGroup(t *testing.T) {
