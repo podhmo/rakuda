@@ -17,7 +17,7 @@ The Go ecosystem has many routers, but many either allow for runtime errors due 
 - **Type Safety:** The router's lifecycle must be enforced by the Go compiler. It should be impossible to compile code that uses a router before it has been explicitly built.
 - **Predictable Lifecycle:** The configuration of routes (the "what") should be completely separate from the serving of traffic (the "how"). The router's state should be immutable once built.
 - **Declarative, Order-Independent API:** Developers should be able to declare routes and middlewares in any order without affecting the final behavior.
-- **Leverage Standard Library:** Maximize the use of the standard `net/http` package, including the path parameter support introduced in Go 1.22, to ensure compatibility and minimize dependencies.
+- **Leverage Standard Library:** Maximize the use of the standard `net/http` package, including the path parameter support introduced in Go 1.24, to ensure compatibility and minimize dependencies.
 - **Flexible Middleware Scoping:** Support applying middlewares globally, to specific route groups, or to nested groups.
 
 ## 3. Proposed Architecture
@@ -70,7 +70,7 @@ This deferred assembly process is what enables the order-independent API. The or
 
 ### 3.4. Path Parameters
 
-`rakuda` will **not** implement its own path parameter parsing logic. It will rely entirely on the native capabilities of `net/http` introduced in Go 1.22. Handlers are expected to retrieve path parameters directly from the request object.
+`rakuda` will **not** implement its own path parameter parsing logic. It will rely entirely on the native capabilities of `net/http` introduced in Go 1.24. Handlers are expected to retrieve path parameters directly from the request object.
 
 **Example:**
 
