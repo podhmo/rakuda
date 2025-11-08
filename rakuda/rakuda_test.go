@@ -101,9 +101,9 @@ func TestMiddlewareAndGrouping(t *testing.T) {
 
 	// Table of tests
 	tests := []struct {
-		path         string
-		wantBody     string
-		wantHeaders  map[string]string
+		path          string
+		wantBody      string
+		wantHeaders   map[string]string
 		absentHeaders []string
 	}{
 		{
