@@ -61,7 +61,7 @@ The key design principle is the **two-stage separation**: configuration stage (B
 
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage
-- [ ] **Middleware demonstration**: Show global and scoped middleware
+- [x] **Middleware demonstration**: Show global and scoped middleware
 - [ ] **Nested groups example**: Show route grouping patterns
 
 ### CLI
