@@ -163,6 +163,40 @@ The `Responder` automatically:
 - Logs encoding errors using the logger from context (or a default logger)
 - Respects the status code set in the request context
 
+### Simplified Handlers with `Lift`
+
+For handlers that simply return data and an error, `rakuda` provides a `Lift` function. This generic function converts a handler of the form `func(*http.Request) (T, error)` into a standard `http.Handler`, automating JSON encoding and error handling.
+
+- **On success**: The returned data is automatically encoded as a JSON response with a `200 OK` status.
+- **On error**:
+    - If the error provides a `StatusCode() int` method (like `rakuda.APIError`), that status code is used.
+    - Otherwise, a generic `500 Internal Server Error` is returned to the client, while the original error is logged internally.
+
+```go
+// Define a response struct
+type User struct {
+    ID   string `json:"id"`
+    Name string `json:"name"`
+}
+
+// This function matches the signature required by Lift
+func GetUser(r *http.Request) (User, error) {
+    userID := r.PathValue("id")
+    if userID == "" {
+        // Return an error with a specific status code
+        return User{}, rakuda.NewAPIError(http.StatusBadRequest, errors.New("user ID is required"))
+    }
+
+    // On success, just return the data
+    return User{ID: userID, Name: "John Doe"}, nil
+}
+
+// Use Lift to create the http.Handler
+b.Get("/users/{id}", rakuda.Lift(responder, GetUser))
+```
+
+This pattern simplifies handler logic by removing the boilerplate of response writing and error checking.
+
 ### Built-in Middlewares
 
 #### Recovery Middleware
