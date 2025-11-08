@@ -12,7 +12,7 @@ The name "rakuda" has two meanings:
 
 - **Predictable Lifecycle**: Configuration of routes is completely separate from serving traffic. The router's state is immutable once built.
 - **Declarative, Order-Independent API**: Declare routes and middlewares in any order without affecting final behavior.
-- **Standard Library First**: Leverages `net/http` package, including path parameter support introduced in Go 1.22, for maximum compatibility and minimal dependencies.
+- **Standard Library First**: Leverages `net/http` package, including path parameter support introduced in Go 1.24, for maximum compatibility and minimal dependencies.
 - **Tree-Based Configuration**: Internal tree structure naturally maps to hierarchical RESTful API routes.
 
 ## Quick Start
@@ -64,7 +64,7 @@ This separation is enforced at compile-time. You cannot pass a `Builder` to `htt
 
 ### Path Parameters
 
-`rakuda` uses Go 1.22's native path parameter support. Parameters are retrieved directly from the request:
+`rakuda` uses Go 1.24's native path parameter support. Parameters are retrieved directly from the request:
 
 ```go
 b.Get("/posts/{postID}/comments/{commentID}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +115,7 @@ Key design principles:
 
 ## Requirements
 
-- Go 1.22 or later (for native path parameter support)
+- Go 1.24 or later (for native path parameter support)
 
 ## Installation
 

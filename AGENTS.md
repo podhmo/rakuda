@@ -17,7 +17,7 @@ This file provides instructions and guidelines for AI agents (like Jules/GitHub 
 
 ## Tool Stack
 
-- **Go version** -- go1.22+ (required for native path parameter support)
+- **Go version** -- go1.24+ (required for native path parameter support)
 - **Standard library** -- net/http only
 - **Testing** -- Standard `testing` package, `github.com/google/go-cmp/cmp` for comparisons
 - **Logging** -- log/slog (with context-aware methods)
