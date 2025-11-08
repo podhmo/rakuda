@@ -2,25 +2,25 @@ package rakuda
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/podhmo/rakuda/rakudatest"
 )
 
 func TestLift(t *testing.T) {
 	type ResponseObject struct {
-		Message string `json:"message"`
+		Message string `json:"message,omitempty"`
+		Error   string `json:"error,omitempty"`
 	}
 
 	tests := []struct {
 		name           string
 		action         func(*http.Request) (ResponseObject, error)
 		wantStatusCode int
-		wantBody       string
+		wantResponse   ResponseObject
 	}{
 		{
 			name: "success",
@@ -28,7 +28,7 @@ func TestLift(t *testing.T) {
 				return ResponseObject{Message: "hello"}, nil
 			},
 			wantStatusCode: http.StatusOK,
-			wantBody:       `{"message":"hello"}`,
+			wantResponse:   ResponseObject{Message: "hello"},
 		},
 		{
 			name: "error with status code",
@@ -36,7 +36,7 @@ func TestLift(t *testing.T) {
 				return ResponseObject{}, NewAPIError(http.StatusBadRequest, errors.New("invalid input"))
 			},
 			wantStatusCode: http.StatusBadRequest,
-			wantBody:       `{"error":"invalid input"}`,
+			wantResponse:   ResponseObject{Error: "invalid input"},
 		},
 		{
 			name: "error without status code",
@@ -44,7 +44,7 @@ func TestLift(t *testing.T) {
 				return ResponseObject{}, errors.New("internal error")
 			},
 			wantStatusCode: http.StatusInternalServerError,
-			wantBody:       `{"error":"Internal Server Error"}`,
+			wantResponse:   ResponseObject{Error: "Internal Server Error"},
 		},
 		{
 			name: "nil data, nil error",
@@ -52,7 +52,7 @@ func TestLift(t *testing.T) {
 				return ResponseObject{}, nil
 			},
 			wantStatusCode: http.StatusOK,
-			wantBody:       `{"message":""}`, // a zero value of the struct
+			wantResponse:   ResponseObject{}, // zero value of the struct
 		},
 	}
 
@@ -62,27 +62,9 @@ func TestLift(t *testing.T) {
 			handler := Lift(responder, tt.action)
 
 			req := httptest.NewRequest("GET", "/", nil)
-			w := httptest.NewRecorder()
+			got := rakudatest.Do[ResponseObject](t, handler, req, tt.wantStatusCode)
 
-			handler.ServeHTTP(w, req)
-
-			resp := w.Result()
-			defer resp.Body.Close()
-
-			if resp.StatusCode != tt.wantStatusCode {
-				t.Errorf("expected status code %d, got %d", tt.wantStatusCode, resp.StatusCode)
-			}
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("failed to read response body: %v", err)
-			}
-
-			// Normalize JSON strings for comparison
-			want := strings.TrimSpace(tt.wantBody)
-			got := strings.TrimSpace(string(body))
-
-			if diff := cmp.Diff(want, got); diff != "" {
+			if diff := cmp.Diff(tt.wantResponse, got); diff != "" {
 				t.Errorf("response body mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -102,22 +84,10 @@ func TestLift_NilNil(t *testing.T) {
 		handler := Lift(responder, action)
 
 		req := httptest.NewRequest("GET", "/", nil)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
+		got := rakudatest.Do[*ResponseObject](t, handler, req, http.StatusNoContent)
 
-		resp := w.Result()
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusNoContent {
-			t.Errorf("expected status code %d, got %d", http.StatusNoContent, resp.StatusCode)
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("failed to read response body: %v", err)
-		}
-		if len(body) > 0 {
-			t.Errorf("expected empty body, but got %q", string(body))
+		if got != nil {
+			t.Errorf("expected nil response for 204 No Content, but got %+v", got)
 		}
 	})
 
@@ -129,25 +99,10 @@ func TestLift_NilNil(t *testing.T) {
 		handler := Lift(responder, action)
 
 		req := httptest.NewRequest("GET", "/", nil)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
+		got := rakudatest.Do[[]ResponseObject](t, handler, req, http.StatusOK)
 
-		resp := w.Result()
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("failed to read response body: %v", err)
-		}
-
-		want := `[]`
-		got := strings.TrimSpace(string(body))
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("response body mismatch (-want +got):\n%s", diff)
+		if len(got) != 0 {
+			t.Errorf("expected empty slice, but got %v with length %d", got, len(got))
 		}
 	})
 
@@ -159,25 +114,11 @@ func TestLift_NilNil(t *testing.T) {
 		handler := Lift(responder, action)
 
 		req := httptest.NewRequest("GET", "/", nil)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
+		got := rakudatest.Do[map[string]ResponseObject](t, handler, req, http.StatusOK)
 
-		resp := w.Result()
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("failed to read response body: %v", err)
-		}
-
-		want := `{}`
-		got := strings.TrimSpace(string(body))
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("response body mismatch (-want +got):\n%s", diff)
+		// A nil map decodes to an empty map `{}`, which is not nil.
+		if len(got) != 0 {
+			t.Errorf("expected empty map, but got %v", got)
 		}
 	})
 }

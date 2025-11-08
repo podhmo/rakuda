@@ -6,18 +6,17 @@ import (
 	"reflect"
 )
 
-
 // Lift converts a function that returns a value and an error into an http.Handler.
 //
 // The action function has the signature: func(*http.Request) (O, error)
 //
-// - If the error is nil, the returned value of type O is encoded as a JSON
-//   response with a 200 OK status.
-// - If the error is not nil:
-// - If the error has a StatusCode() int method, its status code is used for the response.
+//   - If the error is nil, the returned value of type O is encoded as a JSON
+//     response with a 200 OK status.
+//   - If the error is not nil:
+//   - If the error has a StatusCode() int method, its status code is used for the response.
 //   - Otherwise, a 500 Internal Server Error is returned.
 //   - The error message is returned as a JSON object: {"error": "message"}.
-// - If both the returned value and the error are nil, it follows specific rules:
+//   - If both the returned value and the error are nil, it follows specific rules:
 //   - For `nil` maps, it returns `200 OK` with an empty JSON object `{}`.
 //   - For `nil` slices, it returns `200 OK` with an empty JSON array `[]`.
 //   - For other nillable types (e.g., pointers), it returns `204 No Content`.

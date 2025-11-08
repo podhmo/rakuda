@@ -27,6 +27,9 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] Implement `lift` function to convert `func(req) (data, error)` into `http.Handler`.
     - [x] Support custom status codes via `APIError` struct with a `StatusCode()` method.
     - [x] Handle `(nil, nil)` returns: `204` for pointers, `[]` for slices, `{}` for maps.
+- **rakudatest Test Helper**: Implemented a convenient test helper package for `http.Handler` testing. ([sketch/plan-rakudatest.md](./sketch/plan-rakudatest.md))
+    - [x] Includes a generic `Do[T any]` function that integrates request execution, status code validation, optional response assertions, and JSON decoding into a single call.
+    - [x] The `Do` function logs the full response body on a status code mismatch, which was the primary requirement.
 
 ## To Be Implemented
 
