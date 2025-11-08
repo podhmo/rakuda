@@ -5,12 +5,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/podhmo/rakuda"
-)
-
-import (
 	"flag"
 	"os"
+
+	"github.com/podhmo/rakuda"
 )
 
 func newRouter() *rakuda.Builder {
