@@ -169,7 +169,8 @@ func main() {
     handler = LoggerMiddleware(logger)(handler)
 
     http.ListenAndServe(":8080", handler)
-}```
+}
+```
 
 #### 6.2. Testing Usage
 
