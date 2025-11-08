@@ -38,7 +38,8 @@ type node struct {
 // It is used to define routes and middlewares.
 // It does not implement http.Handler.
 type Builder struct {
-	node *node
+	node            *node
+	notFoundHandler http.Handler
 }
 
 // NewBuilder creates a new Builder instance.
@@ -46,6 +47,12 @@ func NewBuilder() *Builder {
 	return &Builder{
 		node: &node{},
 	}
+}
+
+// NotFound sets a custom handler for 404 Not Found responses.
+// If not set, a default JSON response is used.
+func (b *Builder) NotFound(handler http.Handler) {
+	b.notFoundHandler = handler
 }
 
 func (b *Builder) registerHandler(method string, pattern string, handler http.Handler) {
@@ -139,6 +146,27 @@ func (b *Builder) Walk(fn func(method string, pattern string)) {
 	traverse(b.node, "/", []Middleware{})
 }
 
+// router is the internal http.Handler implementation created by the Builder.
+type router struct {
+	mux             *http.ServeMux
+	notFoundHandler http.Handler
+}
+
+// ServeHTTP handles incoming requests. If a route matches, it is served.
+// Otherwise, the configured notFoundHandler is invoked.
+func (rt *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Check if a handler exists for the given request.
+	// This requires Go 1.22+
+	h, pattern := rt.mux.Handler(r)
+	if pattern == "" {
+		// No matching pattern, so serve the 404 handler.
+		rt.notFoundHandler.ServeHTTP(w, r)
+		return
+	}
+	// A handler was found, so serve it.
+	h.ServeHTTP(w, r)
+}
+
 // Build creates a new http.Handler from the configured routes.
 // The returned handler is immutable.
 func (b *Builder) Build() http.Handler {
@@ -177,5 +205,18 @@ func (b *Builder) Build() http.Handler {
 	}
 
 	traverse(b.node, "/", []Middleware{})
-	return mux
+
+	notFoundHandler := b.notFoundHandler
+	if notFoundHandler == nil {
+		responder := NewResponder()
+		notFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = WithStatusCode(r, http.StatusNotFound)
+			responder.JSON(w, r, map[string]string{"error": "not found"})
+		})
+	}
+
+	return &router{
+		mux:             mux,
+		notFoundHandler: notFoundHandler,
+	}
 }

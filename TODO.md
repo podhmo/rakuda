@@ -58,6 +58,11 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] `Group(fn)` method for middleware-only groups
   - [x] Proper path concatenation
   - [x] Middleware inheritance
+- [x] **Not Found Handler**: Support for custom 404 handlers.
+  - [x] `NotFound(handler)` method on Builder.
+  - [x] Default JSON 404 response if no handler is provided.
+  - [x] Test: Default handler behavior.
+  - [x] Test: Custom handler behavior.
 
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage
