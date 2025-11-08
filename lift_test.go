@@ -108,19 +108,43 @@ func TestLift_NilNil(t *testing.T) {
 		resp := w.Result()
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+		if resp.StatusCode != http.StatusNoContent {
+			t.Errorf("expected status code %d, got %d", http.StatusNoContent, resp.StatusCode)
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("failed to read response body: %v", err)
 		}
+		if len(body) > 0 {
+			t.Errorf("expected empty body, but got %q", string(body))
+		}
+	})
 
-		want := "null"
-		got := strings.TrimSpace(string(body))
-		if want != got {
-			t.Errorf("expected body %q, got %q", want, got)
+	t.Run("nil slice, nil error", func(t *testing.T) {
+		responder := NewResponder()
+		action := func(r *http.Request) ([]ResponseObject, error) {
+			return nil, nil
+		}
+		handler := Lift(responder, action)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusNoContent {
+			t.Errorf("expected status code %d, got %d", http.StatusNoContent, resp.StatusCode)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("failed to read response body: %v", err)
+		}
+		if len(body) > 0 {
+			t.Errorf("expected empty body, but got %q", string(body))
 		}
 	})
 }

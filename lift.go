@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 )
 
 // APIError is an error type that includes an HTTP status code.
@@ -47,6 +48,8 @@ func (e *APIError) Unwrap() error {
 // - If the error has a StatusCode() int method, its status code is used for the response.
 //   - Otherwise, a 500 Internal Server Error is returned.
 //   - The error message is returned as a JSON object: {"error": "message"}.
+// - If both the returned value and the error are nil, a 204 No Content
+//   response is sent.
 func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := action(r)
@@ -69,6 +72,17 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 			r = WithStatusCode(r, http.StatusInternalServerError)
 			responder.JSON(w, r, map[string]string{"error": "Internal Server Error"})
 			return
+		}
+
+		// Handle (nil, nil) return by responding with 204 No Content.
+		// This is useful for endpoints that don't need to return a body on success.
+		v := reflect.ValueOf(data)
+		switch v.Kind() {
+		case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Interface, reflect.Chan, reflect.Func:
+			if v.IsNil() {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 		}
 
 		responder.JSON(w, r, data)
