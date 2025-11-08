@@ -25,11 +25,11 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] Test: Builder creation and basic structure
   - [x] Create `node` struct for configuration tree
   - [x] Implement `NewBuilder()` constructor
-  - [x] Test: Route registration in any order produces consistent results
+  - [ ] Test: Route registration in any order produces consistent results
   - [x] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
 - [x] **Build Process with Tests**: Implement the `Build()` method
   - [x] Test: Build creates immutable http.Handler
-  - [x] Test: Order-independent route registration
+  - [ ] Test: Order-independent route registration
   - [x] DFS traversal of configuration tree
   - [x] Context accumulation (path prefix and middleware chain)
   - [x] Handler assembly with middleware wrapping
