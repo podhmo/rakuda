@@ -14,6 +14,15 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 - **Project Structure**: Initial repository setup with LICENSE, README.md, and AGENTS.md.
 - **Documentation**: Design document outlining the core architecture and philosophy ([docs/router-design.md](./docs/router-design.md)).
+- **Responder Package**:
+  - [x] Create `responder` package and basic implementation.
+  - [x] Refactor: Integrate `responder` package into the main `rakuda` package.
+    - [x] Rename `rakuda.go` to `builder.go`.
+    - [x] Rename `rakuda_test.go` to `builder_test.go`.
+    - [x] Move `responder` package contents to top-level `responder.go`.
+    - [x] Refactor `JSON` function into a method on a `Responder` struct.
+    - [x] Update tests to reflect the `Responder` struct changes.
+    - [x] Remove the now-empty `responder` directory.
 
 ## To Be Implemented
 
@@ -49,14 +58,6 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] `Group(fn)` method for middleware-only groups
   - [x] Proper path concatenation
   - [x] Middleware inheritance
-
-### Responder Package
-- [x] **Create `responder` package**: Set up the directory and initial files.
-- [x] **Define `Logger` interface**: Create the `Logger` interface.
-- [x] **Implement context helpers**: Implement `WithLogger` and `WithStatusCode`.
-- [x] **Implement `JSON` responder**: Implement the `JSON` function.
-- [x] **Add tests for `JSON` responder**: Write unit tests for the `JSON` function.
-- [x] **Default Logger**: Use slog as a default logger if none is provided.
 
 ### Example Applications
 - [ ] **Simple REST API example**: Demonstrate basic usage

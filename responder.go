@@ -1,4 +1,4 @@
-package responder
+package rakuda
 
 import (
 	"context"
@@ -15,9 +15,6 @@ type Logger interface {
 	ErrorContext(ctx context.Context, msg string, args ...any)
 }
 
-// defaultLogger is the default logger used when no other logger is specified in the context.
-var defaultLogger Logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
-
 // contextKey is a private type to prevent collisions with other packages' context keys.
 type contextKey string
 
@@ -33,12 +30,10 @@ func WithLogger(r *http.Request, logger Logger) *http.Request {
 	return r.WithContext(ctx)
 }
 
-// getLogger retrieves the Logger from the context, or a default slog logger if not found.
-func getLogger(ctx context.Context) Logger {
-	if logger, ok := ctx.Value(loggerKey).(Logger); ok && logger != nil {
-		return logger
-	}
-	return defaultLogger
+// getLogger retrieves the Logger from the context.
+func getLogger(ctx context.Context) (Logger, bool) {
+	logger, ok := ctx.Value(loggerKey).(Logger)
+	return logger, ok && logger != nil
 }
 
 // WithStatusCode returns a new request with the provided HTTP status code
@@ -57,33 +52,38 @@ func getStatusCode(ctx context.Context) int {
 	return http.StatusOK
 }
 
+// Responder handles writing JSON responses.
+type Responder struct {
+	// DefaultLogger is used when no logger is found in the request context.
+	// If nil, a default slog.Logger is used.
+	DefaultLogger Logger
+}
+
+// NewResponder creates a new Responder with a default slog logger.
+func NewResponder() *Responder {
+	return &Responder{
+		DefaultLogger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+	}
+}
+
 // JSON marshals the 'data' payload to JSON and writes it to the response.
-//
-// It performs the following steps:
-// 1. Checks if the request context has been canceled (e.g., client disconnected).
-//    If so, it returns immediately to prevent "broken pipe" errors.
-// 2. Retrieves the HTTP status code from the request context. If not set,
-//    it defaults to http.StatusOK (200).
-// 3. Sets the "Content-Type" header to "application/json; charset=utf-8".
-// 4. Writes the HTTP status code to the response header.
-// 5. If data is not nil, it encodes the data to the response writer.
-// 6. If encoding fails, it retrieves the Logger from the context. It logs the
-//    error with contextual information.
-func JSON(w http.ResponseWriter, req *http.Request, data any) {
+func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, data any) {
 	ctx := req.Context()
 
 	if err := ctx.Err(); err != nil {
-		return
+		return // Client disconnected
 	}
 
 	status := getStatusCode(ctx)
-
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 
 	if data != nil {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
-			logger := getLogger(ctx)
+			logger, ok := getLogger(ctx)
+			if !ok {
+				logger = r.DefaultLogger
+			}
 			logger.ErrorContext(ctx, "failed to encode json response", "error", err)
 		}
 	}
