@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestNewBuilder(t *testing.T) {
@@ -41,22 +40,22 @@ func TestRegisterHandler(t *testing.T) {
 			b := NewBuilder()
 			tt.register(b)
 
-			expected := []handlerRegistration{
-				{
-					method:  tt.expectedMethod,
-					pattern: pattern,
-					handler: handler,
-				},
+			if len(b.node.actions) != 1 {
+				t.Fatalf("expected 1 action, got %d", len(b.node.actions))
+			}
+			ha, ok := b.node.actions[0].(handlerAction)
+			if !ok {
+				t.Fatalf("expected handlerAction, got %T", b.node.actions[0])
 			}
 
-			if diff := cmp.Diff(expected, b.node.handlers, cmp.AllowUnexported(handlerRegistration{}), cmpopts.IgnoreFields(handlerRegistration{}, "handler")); diff != "" {
-				t.Errorf("Builder.node.handlers mismatch (-want +got):\n%s", diff)
+			if ha.method != tt.expectedMethod {
+				t.Errorf("method mismatch: got %q, want %q", ha.method, tt.expectedMethod)
 			}
-			if len(b.node.handlers) != 1 {
-				t.Fatalf("expected 1 handler, got %d", len(b.node.handlers))
+			if ha.pattern != pattern {
+				t.Errorf("pattern mismatch: got %q, want %q", ha.pattern, pattern)
 			}
 			// Compare function pointers.
-			got := reflect.ValueOf(b.node.handlers[0].handler).Pointer()
+			got := reflect.ValueOf(ha.handler).Pointer()
 			want := reflect.ValueOf(handler).Pointer()
 			if got != want {
 				t.Errorf("handler function pointer mismatch: got %v, want %v", got, want)
@@ -65,13 +64,160 @@ func TestRegisterHandler(t *testing.T) {
 	}
 }
 
-func TestMiddlewareAndGrouping(t *testing.T) {
-	// Define handlers
-	rootHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("root")) })
-	apiHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("api")) })
-	apiV1Handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("api-v1")) })
+func TestOrderIndependence(t *testing.T) {
+	// Helper function to compare two recorders
+	assertRecordersEqual := func(t *testing.T, rr1, rr2 *httptest.ResponseRecorder) {
+		t.Helper()
+		if rr1.Code != rr2.Code {
+			t.Errorf("HTTP Status code mismatch: router1=%d, router2=%d", rr1.Code, rr2.Code)
+		}
+		if diff := cmp.Diff(rr1.Body.String(), rr2.Body.String()); diff != "" {
+			t.Errorf("HTTP Body mismatch (-want +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(rr1.Header(), rr2.Header()); diff != "" {
+			t.Errorf("HTTP Header mismatch (-want +got):\n%s", diff)
+		}
+	}
 
-	// Define middlewares
+	t.Run("Simple", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler")) })
+		mw := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("X-Middleware", "mw")
+				next.ServeHTTP(w, r)
+			})
+		}
+
+		b1 := NewBuilder()
+		b1.Route("/api", func(b *Builder) {
+			b.Get("/handler", handler)
+			b.Use(mw)
+		})
+		router1 := b1.Build()
+
+		b2 := NewBuilder()
+		b2.Route("/api", func(b *Builder) {
+			b.Use(mw)
+			b.Get("/handler", handler)
+		})
+		router2 := b2.Build()
+
+		req := httptest.NewRequest(http.MethodGet, "/api/handler", nil)
+		rr1 := httptest.NewRecorder()
+		rr2 := httptest.NewRecorder()
+		router1.ServeHTTP(rr1, req)
+		router2.ServeHTTP(rr2, req)
+
+		assertRecordersEqual(t, rr1, rr2)
+	})
+
+	t.Run("TopLevelMiddleware", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler")) })
+		topLevelMw := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("X-Top-Level", "top")
+				next.ServeHTTP(w, r)
+			})
+		}
+
+		b1 := NewBuilder()
+		b1.Route("/api", func(b *Builder) {
+			b.Get("/handler", handler)
+		})
+		b1.Use(topLevelMw) // Applied after
+		router1 := b1.Build()
+
+		b2 := NewBuilder()
+		b2.Use(topLevelMw) // Applied before
+		b2.Route("/api", func(b *Builder) {
+			b.Get("/handler", handler)
+		})
+		router2 := b2.Build()
+
+		req := httptest.NewRequest(http.MethodGet, "/api/handler", nil)
+		rr1 := httptest.NewRecorder()
+		rr2 := httptest.NewRecorder()
+		router1.ServeHTTP(rr1, req)
+		router2.ServeHTTP(rr2, req)
+
+		assertRecordersEqual(t, rr1, rr2)
+		if rr1.Header().Get("X-Top-Level") != "top" {
+			t.Errorf("Expected top-level middleware to be applied")
+		}
+	})
+
+	t.Run("NestedGroups", func(t *testing.T) {
+		parentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("parent")) })
+		nestedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("nested")) })
+		parentMw := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("X-Parent", "parent-mw")
+				next.ServeHTTP(w, r)
+			})
+		}
+		nestedMw := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("X-Nested", "nested-mw")
+				next.ServeHTTP(w, r)
+			})
+		}
+
+		b1 := NewBuilder()
+		b1.Route("/api", func(b *Builder) {
+			b.Route("/v1", func(b *Builder) {
+				b.Get("/items", nestedHandler)
+				b.Use(nestedMw)
+			})
+			b.Get("/data", parentHandler)
+			b.Use(parentMw)
+		})
+		router1 := b1.Build()
+
+		b2 := NewBuilder()
+		b2.Route("/api", func(b *Builder) {
+			b.Use(parentMw)
+			b.Get("/data", parentHandler)
+			b.Route("/v1", func(b *Builder) {
+				b.Use(nestedMw)
+				b.Get("/items", nestedHandler)
+			})
+		})
+		router2 := b2.Build()
+
+		// Test parent
+		reqParent := httptest.NewRequest(http.MethodGet, "/api/data", nil)
+		rrParent1 := httptest.NewRecorder()
+		rrParent2 := httptest.NewRecorder()
+		router1.ServeHTTP(rrParent1, reqParent)
+		router2.ServeHTTP(rrParent2, reqParent)
+		assertRecordersEqual(t, rrParent1, rrParent2)
+		if rrParent1.Header().Get("X-Parent") != "parent-mw" {
+			t.Errorf("Expected parent middleware to be applied")
+		}
+		if rrParent1.Header().Get("X-Nested") != "" {
+			t.Errorf("Did not expect nested middleware to be applied")
+		}
+
+		// Test nested
+		reqNested := httptest.NewRequest(http.MethodGet, "/api/v1/items", nil)
+		rrNested1 := httptest.NewRecorder()
+		rrNested2 := httptest.NewRecorder()
+		router1.ServeHTTP(rrNested1, reqNested)
+		router2.ServeHTTP(rrNested2, reqNested)
+		assertRecordersEqual(t, rrNested1, rrNested2)
+		if rrNested1.Header().Get("X-Parent") != "parent-mw" {
+			t.Errorf("Expected parent middleware to be applied to nested handler")
+		}
+		if rrNested1.Header().Get("X-Nested") != "nested-mw" {
+			t.Errorf("Expected nested middleware to be applied")
+		}
+	})
+}
+
+func TestGroup(t *testing.T) {
+	// Define handlers and middlewares
+	handler1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler1")) })
+	handler2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("handler2")) })
 	mw1 := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("X-Middleware-1", "mw1")
@@ -87,72 +233,44 @@ func TestMiddlewareAndGrouping(t *testing.T) {
 
 	// Build the router
 	b := NewBuilder()
-	b.Use(mw1)
-	b.Get("/root", rootHandler)
-
-	b.Route("/api", func(b *Builder) {
-		b.Use(mw2)
-		b.Get("/data", apiHandler)
-		b.Route("/v1", func(b *Builder) {
-			b.Get("/items", apiV1Handler)
+	b.Group(func(b *Builder) {
+		b.Use(mw1)
+		b.Get("/handler1", handler1)
+		b.Group(func(b *Builder) {
+			b.Use(mw2)
+			b.Get("/handler2", handler2)
 		})
 	})
 	router := b.Build()
 
-	// Table of tests
-	tests := []struct {
-		path         string
-		wantBody     string
-		wantHeaders  map[string]string
-		absentHeaders []string
-	}{
-		{
-			path:     "/root",
-			wantBody: "root",
-			wantHeaders: map[string]string{
-				"X-Middleware-1": "mw1",
-			},
-			absentHeaders: []string{"X-Middleware-2"},
-		},
-		{
-			path:     "/api/data",
-			wantBody: "api",
-			wantHeaders: map[string]string{
-				"X-Middleware-1": "mw1",
-				"X-Middleware-2": "mw2",
-			},
-		},
-		{
-			path:     "/api/v1/items",
-			wantBody: "api-v1",
-			wantHeaders: map[string]string{
-				"X-Middleware-1": "mw1",
-				"X-Middleware-2": "mw2",
-			},
-		},
+	// --- Verification ---
+	// Test handler1
+	req1 := httptest.NewRequest(http.MethodGet, "/handler1", nil)
+	rr1 := httptest.NewRecorder()
+	router.ServeHTTP(rr1, req1)
+
+	if rr1.Body.String() != "handler1" {
+		t.Errorf("handler1 body mismatch: got %q, want %q", rr1.Body.String(), "handler1")
+	}
+	if rr1.Header().Get("X-Middleware-1") != "mw1" {
+		t.Errorf("handler1 X-Middleware-1 mismatch: got %q, want %q", rr1.Header().Get("X-Middleware-1"), "mw1")
+	}
+	if rr1.Header().Get("X-Middleware-2") != "" {
+		t.Errorf("handler1 X-Middleware-2 should be absent, got %q", rr1.Header().Get("X-Middleware-2"))
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
-			rr := httptest.NewRecorder()
-			router.ServeHTTP(rr, req)
+	// Test handler2
+	req2 := httptest.NewRequest(http.MethodGet, "/handler2", nil)
+	rr2 := httptest.NewRecorder()
+	router.ServeHTTP(rr2, req2)
 
-			if got := rr.Body.String(); got != tt.wantBody {
-				t.Errorf("response body mismatch: got %q, want %q", got, tt.wantBody)
-			}
-
-			for key, val := range tt.wantHeaders {
-				if got := rr.Header().Get(key); got != val {
-					t.Errorf("response header %s mismatch: got %q, want %q", key, got, val)
-				}
-			}
-
-			for _, key := range tt.absentHeaders {
-				if got := rr.Header().Get(key); got != "" {
-					t.Errorf("unexpected header %s: got %q", key, got)
-				}
-			}
-		})
+	if rr2.Body.String() != "handler2" {
+		t.Errorf("handler2 body mismatch: got %q, want %q", rr2.Body.String(), "handler2")
+	}
+	if rr2.Header().Get("X-Middleware-1") != "mw1" {
+		t.Errorf("handler2 X-Middleware-1 mismatch: got %q, want %q", rr2.Header().Get("X-Middleware-1"), "mw1")
+	}
+	if rr2.Header().Get("X-Middleware-2") != "mw2" {
+		t.Errorf("handler2 X-Middleware-2 mismatch: got %q, want %q", rr2.Header().Get("X-Middleware-2"), "mw2")
 	}
 }

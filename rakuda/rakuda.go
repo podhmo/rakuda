@@ -8,17 +8,30 @@ import (
 // Middleware is a function that wraps an http.Handler.
 type Middleware func(http.Handler) http.Handler
 
-type handlerRegistration struct {
+// --- Action definitions ---
+type action interface {
+	isAction()
+}
+
+type middlewareAction struct {
+	middleware Middleware
+}
+
+func (middlewareAction) isAction() {}
+
+type handlerAction struct {
 	method  string
 	pattern string
 	handler http.Handler
 }
 
+func (handlerAction) isAction() {}
+
+// --- Node definition ---
 type node struct {
-	pattern     string
-	middlewares []Middleware
-	handlers    []handlerRegistration
-	children    []*node
+	pattern  string
+	actions  []action
+	children []*node
 }
 
 // Builder is the configuration object for the router.
@@ -36,7 +49,7 @@ func NewBuilder() *Builder {
 }
 
 func (b *Builder) registerHandler(method string, pattern string, handler http.Handler) {
-	b.node.handlers = append(b.node.handlers, handlerRegistration{
+	b.node.actions = append(b.node.actions, handlerAction{
 		method:  method,
 		pattern: pattern,
 		handler: handler,
@@ -45,7 +58,7 @@ func (b *Builder) registerHandler(method string, pattern string, handler http.Ha
 
 // Use adds a middleware to the current builder's node.
 func (b *Builder) Use(middleware Middleware) {
-	b.node.middlewares = append(b.node.middlewares, middleware)
+	b.node.actions = append(b.node.actions, middlewareAction{middleware: middleware})
 }
 
 // Get registers a GET handler.
@@ -83,27 +96,45 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 	fn(childBuilder)
 }
 
+// Group creates a new middleware-only group.
+func (b *Builder) Group(fn func(b *Builder)) {
+	childNode := &node{}
+	b.node.children = append(b.node.children, childNode)
+	childBuilder := &Builder{node: childNode}
+	fn(childBuilder)
+}
+
 // Build creates a new http.Handler from the configured routes.
 // The returned handler is immutable.
 func (b *Builder) Build() http.Handler {
 	mux := http.NewServeMux()
 	var traverse func(*node, string, []Middleware)
-	traverse = func(n *node, prefix string, middlewares []Middleware) {
-		// Combine middlewares from parent and current node
-		combinedMiddlewares := append([]Middleware{}, middlewares...)
-		combinedMiddlewares = append(combinedMiddlewares, n.middlewares...)
-
-		// Register handlers with combined middlewares
-		for _, reg := range n.handlers {
-			fullPattern := path.Join(prefix, reg.pattern)
-			handler := reg.handler
-			for i := len(combinedMiddlewares) - 1; i >= 0; i-- {
-				handler = combinedMiddlewares[i](handler)
+	traverse = func(n *node, prefix string, inheritedMiddlewares []Middleware) {
+		// Phase 1: Collect middlewares for the current node.
+		var nodeMiddlewares []Middleware
+		for _, a := range n.actions {
+			if ma, ok := a.(middlewareAction); ok {
+				nodeMiddlewares = append(nodeMiddlewares, ma.middleware)
 			}
-			mux.Handle(reg.method+" "+fullPattern, handler)
 		}
 
-		// Traverse children
+		// Combine inherited middlewares with the current node's middlewares.
+		combinedMiddlewares := append([]Middleware{}, inheritedMiddlewares...)
+		combinedMiddlewares = append(combinedMiddlewares, nodeMiddlewares...)
+
+		// Phase 2: Register handlers with the combined middleware chain.
+		for _, a := range n.actions {
+			if ha, ok := a.(handlerAction); ok {
+				fullPattern := path.Join(prefix, ha.pattern)
+				handler := ha.handler
+				for i := len(combinedMiddlewares) - 1; i >= 0; i-- {
+					handler = combinedMiddlewares[i](handler)
+				}
+				mux.Handle(ha.method+" "+fullPattern, handler)
+			}
+		}
+
+		// Phase 3: Traverse children.
 		for _, child := range n.children {
 			newPrefix := path.Join(prefix, child.pattern)
 			traverse(child, newPrefix, combinedMiddlewares)
