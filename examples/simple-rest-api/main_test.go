@@ -11,7 +11,11 @@ import (
 
 func TestAPI(t *testing.T) {
 	builder := newRouter()
-	ts := httptest.NewServer(builder.Build())
+	handler, err := builder.Build()
+	if err != nil {
+		t.Fatalf("builder.Build() failed: %v", err)
+	}
+	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
 	tests := []struct {

@@ -63,6 +63,10 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] Default JSON 404 response if no handler is provided.
   - [x] Test: Default handler behavior.
   - [x] Test: Custom handler behavior.
+- [x] **Route Conflict Handling**: Add configurable behavior for duplicate route registrations.
+  - [x] `OnConflict` field in `Builder` (`Warn` or `Error`).
+  - [x] `Build()` method returns an error on conflict when configured to do so.
+  - [x] Add tests for both `Warn` and `Error` behaviors.
 
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage

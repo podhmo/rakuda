@@ -1,7 +1,9 @@
 package rakuda
 
 import (
+	"log/slog"
 	"net/http"
+	"os"
 	"path"
 )
 
@@ -34,18 +36,35 @@ type node struct {
 	children []*node
 }
 
+// OnConflictFunc defines a function to be called when a route conflict is detected.
+// It receives the builder and the conflicting route key. It can return an error
+// to halt the build process. If it returns nil, the conflict is ignored and the
+// duplicate route is not registered.
+type OnConflictFunc func(b *Builder, routeKey string) error
+
+// DefaultOnConflict is the default conflict handler. It logs a warning and
+// returns nil, allowing the build process to continue.
+func DefaultOnConflict(b *Builder, routeKey string) error {
+	b.Logger.Warn("route conflict", "route", routeKey)
+	return nil
+}
+
 // Builder is the configuration object for the router.
 // It is used to define routes and middlewares.
 // It does not implement http.Handler.
 type Builder struct {
 	node            *node
 	notFoundHandler http.Handler
+	OnConflict      OnConflictFunc
+	Logger          *slog.Logger
 }
 
 // NewBuilder creates a new Builder instance.
 func NewBuilder() *Builder {
 	return &Builder{
-		node: &node{},
+		node:       &node{},
+		OnConflict: DefaultOnConflict,
+		Logger:     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 }
 
@@ -159,24 +178,28 @@ type router struct {
 // ServeHTTP handles incoming requests. If a route matches, it is served.
 // Otherwise, the configured notFoundHandler is invoked.
 func (rt *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Check if a handler exists for the given request.
-	// This requires Go 1.22+
-	h, pattern := rt.mux.Handler(r)
+	// Check if a handler exists for the given request. This requires Go 1.22+.
+	// We use mux.Handler() only to detect if a route exists. If it does,
+	// we must delegate to mux.ServeHTTP() to ensure that path values are
+	// correctly extracted and populated in the request context.
+	_, pattern := rt.mux.Handler(r)
 	if pattern == "" {
 		// No matching pattern, so serve the 404 handler.
 		rt.notFoundHandler.ServeHTTP(w, r)
 		return
 	}
-	// A handler was found, so serve it.
-	h.ServeHTTP(w, r)
+	// A handler was found, so let the mux handle the request.
+	rt.mux.ServeHTTP(w, r)
 }
 
 // Build creates a new http.Handler from the configured routes.
 // The returned handler is immutable.
-func (b *Builder) Build() http.Handler {
+func (b *Builder) Build() (http.Handler, error) {
 	mux := http.NewServeMux()
-	var traverse func(*node, string, []Middleware)
-	traverse = func(n *node, prefix string, inheritedMiddlewares []Middleware) {
+	registered := make(map[string]struct{})
+
+	var traverse func(*node, string, []Middleware) error
+	traverse = func(n *node, prefix string, inheritedMiddlewares []Middleware) error {
 		// Phase 1: Collect middlewares for the current node.
 		var nodeMiddlewares []Middleware
 		for _, a := range n.actions {
@@ -193,22 +216,37 @@ func (b *Builder) Build() http.Handler {
 		for _, a := range n.actions {
 			if ha, ok := a.(handlerAction); ok {
 				fullPattern := path.Join(prefix, ha.pattern)
+				routeKey := ha.method + " " + fullPattern
+
+				if _, exists := registered[routeKey]; exists {
+					if err := b.OnConflict(b, routeKey); err != nil {
+						return err
+					}
+					continue // Skip registration
+				}
+				registered[routeKey] = struct{}{}
+
 				handler := ha.handler
 				for i := len(combinedMiddlewares) - 1; i >= 0; i-- {
 					handler = combinedMiddlewares[i](handler)
 				}
-				mux.Handle(ha.method+" "+fullPattern, handler)
+				mux.Handle(routeKey, handler)
 			}
 		}
 
 		// Phase 3: Traverse children.
 		for _, child := range n.children {
 			newPrefix := path.Join(prefix, child.pattern)
-			traverse(child, newPrefix, combinedMiddlewares)
+			if err := traverse(child, newPrefix, combinedMiddlewares); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
 
-	traverse(b.node, "/", []Middleware{})
+	if err := traverse(b.node, "/", []Middleware{}); err != nil {
+		return nil, err
+	}
 
 	notFoundHandler := b.notFoundHandler
 	if notFoundHandler == nil {
@@ -222,5 +260,5 @@ func (b *Builder) Build() http.Handler {
 	return &router{
 		mux:             mux,
 		notFoundHandler: notFoundHandler,
-	}
+	}, nil
 }

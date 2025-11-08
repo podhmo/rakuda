@@ -224,7 +224,10 @@ func run() error {
 		return nil
 	}
 
-	handler := builder.Build()
+	handler, err := builder.Build()
+	if err != nil {
+		return fmt.Errorf("failed to build router: %w", err)
+	}
 
 	// Wrap the entire handler with CORS to catch all OPTIONS requests
 	// This ensures preflight requests are handled even for routes not explicitly registered
