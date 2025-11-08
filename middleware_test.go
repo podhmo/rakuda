@@ -20,7 +20,11 @@ func TestRecovery(t *testing.T) {
 		if rr.Code != http.StatusInternalServerError {
 			t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, rr.Code)
 		}
-		expectedBody := http.StatusText(http.StatusInternalServerError) + "\n"
+		expectedContentType := "application/json; charset=utf-8"
+		if contentType := rr.Header().Get("Content-Type"); contentType != expectedContentType {
+			t.Errorf("expected Content-Type %q, got %q", expectedContentType, contentType)
+		}
+		expectedBody := `{"error":"Internal Server Error"}` + "\n"
 		if rr.Body.String() != expectedBody {
 			t.Errorf("expected body %q, got %q", expectedBody, rr.Body.String())
 		}

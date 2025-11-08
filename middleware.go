@@ -17,7 +17,10 @@ func Recovery(next http.Handler) http.Handler {
 					logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
 				}
 				logger.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
+				r = WithStatusCode(r, http.StatusInternalServerError)
+				responder := NewResponder()
+				responder.JSON(w, r, map[string]string{"error": http.StatusText(http.StatusInternalServerError)})
 			}
 		}()
 		next.ServeHTTP(w, r)
