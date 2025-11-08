@@ -50,6 +50,14 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] Proper path concatenation
   - [x] Middleware inheritance
 
+### Responder Package
+- [x] **Create `responder` package**: Set up the directory and initial files.
+- [x] **Define `Logger` interface**: Create the `Logger` interface.
+- [x] **Implement context helpers**: Implement `WithLogger` and `WithStatusCode`.
+- [x] **Implement `JSON` responder**: Implement the `JSON` function.
+- [x] **Add tests for `JSON` responder**: Write unit tests for the `JSON` function.
+- [x] **Default Logger**: Use slog as a default logger if none is provided.
+
 ### Example Applications
 - [ ] **Simple REST API example**: Demonstrate basic usage
 - [ ] **Middleware demonstration**: Show global and scoped middleware
