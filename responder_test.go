@@ -17,6 +17,113 @@ type testLogger struct {
 	args   []any
 }
 
+func TestResponder_SSE(t *testing.T) {
+	type Message struct {
+		Content string `json:"content"`
+	}
+
+	tests := []struct {
+		name         string
+		messages     []any
+		wantBody     string
+		wantHeaders  map[string]string
+		disconnect   bool
+		setupRequest func(*http.Request) *http.Request
+	}{
+		{
+			name: "simple anonymous event stream",
+			messages: []any{
+				Message{Content: "hello"},
+				Message{Content: "world"},
+			},
+			wantBody: "data: {\"content\":\"hello\"}\n\n" +
+				"data: {\"content\":\"world\"}\n\n",
+			wantHeaders: map[string]string{
+				"Content-Type":  "text/event-stream",
+				"Cache-Control": "no-cache",
+				"Connection":    "keep-alive",
+			},
+		},
+		{
+			name: "named event stream",
+			messages: []any{
+				Event[Message]{Name: "greeting", Data: Message{Content: "hello"}},
+				Event[Message]{Name: "farewell", Data: Message{Content: "bye"}},
+			},
+			wantBody: "event: greeting\n" +
+				"data: {\"content\":\"hello\"}\n\n" +
+				"event: farewell\n" +
+				"data: {\"content\":\"bye\"}\n\n",
+			wantHeaders: map[string]string{
+				"Content-Type":  "text/event-stream",
+				"Cache-Control": "no-cache",
+				"Connection":    "keep-alive",
+			},
+		},
+		{
+			name: "mixed anonymous and named events",
+			messages: []any{
+				Message{Content: "first"},
+				Event[Message]{Name: "special", Data: Message{Content: "second"}},
+				Message{Content: "third"},
+			},
+			wantBody: "data: {\"content\":\"first\"}\n\n" +
+				"event: special\n" +
+				"data: {\"content\":\"second\"}\n\n" +
+				"data: {\"content\":\"third\"}\n\n",
+		},
+		{
+			name:       "client disconnects",
+			messages:   []any{Message{Content: "hello"}},
+			disconnect: true,
+			wantBody:   "data: {\"content\":\"hello\"}\n\n", // Only the first message is sent
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			rr := httptest.NewRecorder()
+			responder := NewResponder()
+			responder.DefaultLogger = &testLogger{t: t}
+
+			ctx, cancel := context.WithCancel(req.Context())
+			req = req.WithContext(ctx)
+
+			ch := make(chan any, len(tt.messages))
+
+			// Act
+			go func() {
+				defer close(ch)
+				for i, msg := range tt.messages {
+					if tt.disconnect && i > 0 {
+						cancel() // Simulate disconnect after the first message
+						return
+					}
+					ch <- msg
+				}
+			}()
+
+			SSE(responder, rr, req, ch)
+
+			// Assert Headers
+			if tt.wantHeaders != nil {
+				for key, want := range tt.wantHeaders {
+					if got := rr.Header().Get(key); got != want {
+						t.Errorf("wrong header %q: got %q, want %q", key, got, want)
+					}
+				}
+			}
+
+			// Assert Body
+			if diff := cmp.Diff(tt.wantBody, rr.Body.String()); diff != "" {
+				t.Errorf("unexpected body (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func (l *testLogger) ErrorContext(ctx context.Context, msg string, args ...any) {
 	l.t.Helper()
 	l.called = true

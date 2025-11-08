@@ -2,41 +2,10 @@ package rakuda
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"reflect"
 )
 
-// APIError is an error type that includes an HTTP status code.
-type APIError struct {
-	err    error
-	status int
-}
-
-// NewAPIError creates a new APIError.
-func NewAPIError(statusCode int, err error) *APIError {
-	return &APIError{status: statusCode, err: err}
-}
-
-// NewAPIErrorf creates a new APIError with a formatted message.
-func NewAPIErrorf(statusCode int, format string, args ...any) *APIError {
-	return &APIError{status: statusCode, err: fmt.Errorf(format, args...)}
-}
-
-// Error implements the error interface.
-func (e *APIError) Error() string {
-	return e.err.Error()
-}
-
-// StatusCode returns the HTTP status code.
-func (e *APIError) StatusCode() int {
-	return e.status
-}
-
-// Unwrap supports errors.Is and errors.As.
-func (e *APIError) Unwrap() error {
-	return e.err
-}
 
 // Lift converts a function that returns a value and an error into an http.Handler.
 //
