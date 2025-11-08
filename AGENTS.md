@@ -25,13 +25,9 @@ This file provides instructions and guidelines for AI agents (like Jules/GitHub 
 ## Prohibited Tools and Practices
 
 - **testify** -- Prohibited. Use standard `testing` package and `go-cmp` instead
-- **go/packages** -- Prohibited. Causes eager imports
-- **go/types** -- Prohibited. Causes eager imports
-- **go list** -- Prohibited
 - **log package** -- Prohibited. Use `log/slog` instead
 - **Committing binaries** -- Do not commit binaries created by `go build`
 - **Committing temp files** -- Do not commit temporary debug files
-- **Changing GOPATH** -- Do not change GOPATH, especially not in tests with `os.Setenv`
 
 ## Required Practices
 
@@ -44,7 +40,7 @@ This file provides instructions and guidelines for AI agents (like Jules/GitHub 
 ### Documentation
 - Write all documentation in `docs/*.md` in English
 - Write all commit messages in English
-- Keep TODO.md updated following the format in docs/prompts.md
+- Keep TODO.md updated following the format in sketch/prompts.md
 - Reference design documents when making architectural decisions
 
 ### Testing
@@ -61,16 +57,9 @@ When responding to users:
 - Write commit messages in English
 - Respond to user input in Japanese (ユーザーへの返答は日本語で)
 
-## Jules-Specific Environment Notes
-
-- Build output should go to `/tmp` (e.g., `go build -o /tmp/rakuda`)
-- You cannot modify files that aren't committed to the repository
-- Verify you're in `/home/runner/work/rakuda/rakuda` with `pwd` if files seem missing
-- For running tests: always use `go test ./...` from the repository root
-
 ## TODO.md Management
 
-Follow the guidelines in [docs/prompts.md](./docs/prompts.md) for:
+Follow the guidelines in [sketch/prompts.md](./sketch/prompts.md) for:
 - Updating TODO.md from plan documents
 - Finalizing and refactoring TODO.md
 - Creating continuation documents for incomplete work
@@ -101,13 +90,9 @@ rakuda/
 ├── TODO.md            # Implementation status and roadmap
 ├── AGENTS.md          # This file - agent instructions
 ├── LICENSE            # MIT License
-└── docs/              # Design documents and guides
-    ├── router-design.md  # Core architecture and design decisions
-    └── prompts.md        # Development prompts for Jules
+├── docs/              # Design documents
+│   └── router-design.md  # Core architecture and design decisions
+└── sketch/            # AI agent files and planning documents
+    ├── README.md      # About sketch directory
+    └── prompts.md     # Development prompts for Jules
 ```
-
-## References
-
-This project's documentation structure is inspired by [github.com/podhmo/go-scan](https://github.com/podhmo/go-scan).
-
-For detailed development prompts and workflows, see [docs/prompts.md](./docs/prompts.md).

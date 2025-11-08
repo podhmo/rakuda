@@ -4,7 +4,7 @@ This document contains prompts and guidelines for working with the rakuda projec
 
 ## Prompt for Updating TODO.md from Plan Documents
 
-**Task:** Update the `TODO.md` file by transcribing unimplemented tasks from all `docs/plan-*.md` documents.
+**Task:** Update the `TODO.md` file by transcribing unimplemented tasks from all `sketch/plan-*.md` documents.
 
 **Detailed Requirements:**
 
@@ -16,7 +16,7 @@ This document contains prompts and guidelines for working with the rakuda projec
    - The content under the `## To Be Implemented` section should be completely replaced with a newly generated list.
 
 3. **Source of Tasks**:
-   - The tasks for the new list must be sourced from all `docs/plan-*.md` files.
+   - The tasks for the new list must be sourced from all `sketch/plan-*.md` files.
 
 4. **Filtering Logic**:
    - Only extract tasks that are **unimplemented**.
@@ -26,7 +26,7 @@ This document contains prompts and guidelines for working with the rakuda projec
 5. **Formatting Requirements**:
    - Group the extracted tasks by their source file.
    - Each group must have a level-3 heading (`###`) that includes the name of the feature and a clickable markdown link to the source `plan-*.md` file.
-     - **Correct Format:** `### Feature Name ([docs/plan-name.md](./docs/plan-name.md))`
+     - **Correct Format:** `### Feature Name ([sketch/plan-name.md](./sketch/plan-name.md))`
      - **Incorrect Format:** `### Feature Name (plan-name.md)`
    - Each task should be a list item with a checkbox: `- [ ] Task description`.
 
@@ -69,7 +69,7 @@ When all tasks defined in a `plan-*.md` document are completed, follow these ste
    - **For Feature Additions:** Describe the new feature that was implemented. The goal is to capture the "what" and "why" of the change, preserving the description of the feature itself.
    - **For Bug Fixes & Miscellaneous Tasks:** Group related fixes or smaller tasks into a single, summarized bullet point.
    - **Preserve Key Information:** In all summaries, you **must** preserve:
-     - Any links to `docs/plan-*.md` or other documentation that explain the decision-making process.
+     - Any links to `sketch/plan-*.md` or other documentation that explain the decision-making process.
      - Clear descriptions of major decisions made.
 
 3. **Clean Up Pending Tasks:** Ensure the `## To Be Implemented` section is left in a clean state, containing only actionable tasks that are genuinely incomplete.
@@ -78,7 +78,7 @@ When all tasks defined in a `plan-*.md` document are completed, follow these ste
 
 - **Before (in `To Be Implemented`):**
   ```markdown
-  ### Core Router Implementation ([docs/plan-router.md](./docs/plan-router.md))
+  ### Core Router Implementation ([sketch/plan-router.md](./sketch/plan-router.md))
   - [x] **Implement Builder Type**: Created the Builder type with configuration tree
   - [x] **Add Route Methods**: Implemented Get, Post, Put, Delete, Patch methods
   - [x] **Build Process**: Implemented DFS traversal and handler assembly
@@ -86,7 +86,7 @@ When all tasks defined in a `plan-*.md` document are completed, follow these ste
 
 - **After (in `Implemented`):**
   ```markdown
-  - **Core Router Implementation**: Implemented the Builder type with configuration tree and basic route registration methods. The Build process uses DFS traversal for handler assembly. See ([docs/plan-router.md](./docs/plan-router.md)) for details.
+  - **Core Router Implementation**: Implemented the Builder type with configuration tree and basic route registration methods. The Build process uses DFS traversal for handler assembly. See ([sketch/plan-router.md](./sketch/plan-router.md)) for details.
   ```
 
 ---
@@ -100,8 +100,8 @@ When all tasks defined in a `plan-*.md` document are completed, follow these ste
 **Detailed Requirements:**
 
 1. **Create New Document**:
-   - Create a new markdown file under the `docs/` directory.
-   - The filename must follow the convention: `docs/cont-<feature-name>.md`.
+   - Create a new markdown file under the `sketch/` directory.
+   - The filename must follow the convention: `sketch/cont-<feature-name>.md`.
 
 2. **Document Structure**:
    - The document must be written in English and contain the following sections, in order:
@@ -114,50 +114,9 @@ When all tasks defined in a `plan-*.md` document are completed, follow these ste
         - Frame this as a technical journey of understanding the code, not as a report of system errors.
      5. **Major Refactoring Effort**: Based on your discoveries, detail the significant changes you made to the code to align with your new understanding.
      6. **Current Status**: Describe the current state of the code. Mention any remaining build errors, but frame them as the next technical hurdle to overcome.
-     7. **References**: List any files from the `docs/` directory that you found helpful, or that a future agent should consult to get up to speed quickly.
+     7. **References**: List any files from the `sketch/` directory that you found helpful, or that a future agent should consult to get up to speed quickly.
      8. **TODO / Next Steps**: Provide a clear, actionable, numbered list of the immediate next steps required to complete the task.
 
 3. **Update `TODO.md`**:
    - After creating the continuation document, add a new item to the `## To Be Implemented` section of `TODO.md`.
-   - This item should briefly describe the feature and link to the new `docs/cont-<feature-name>.md` file.
-
----
-
-## General Development Guidelines
-
-### Testing
-
-- Always run tests after making changes: `go test ./...`
-- Use table-driven tests for comprehensive coverage
-- Do not use `github.com/stretchr/testify` - it is prohibited
-- Use `github.com/google/go-cmp/cmp` for test comparisons
-
-### Code Style
-
-- Run `goimports` for formatting (it also removes unused imports)
-- Use `log/slog` for logging with context-aware methods (e.g., `DebugContext()`)
-- Do not use the `log` package - it is prohibited
-- All documentation in `docs/*.md` must be written in English
-- All commit messages must be written in English
-
-### Prohibited Practices
-
-- Do not use `go/packages` or `go/types` (these cause eager imports)
-- Do not use `go list`
-- Do not commit binaries created by `go build`
-- Do not commit temporary debug files
-- Do not use `github.com/stretchr/testify`
-- Do not change `GOPATH` (especially not in tests with `os.Setenv`)
-
-### Required Practices
-
-- Use `github.com/google/go-cmp/cmp` for test comparisons
-- Use `log/slog` with context-aware methods for logging
-- Write all `docs/*.md` in English
-- Write all commit messages in English
-
-### Project-Specific Information
-
-- **Repository**: github.com/podhmo/rakuda
-- **Go Version**: 1.22+ (required for native path parameter support)
-- **Dependencies**: `net/http` only (standard library)
+   - This item should briefly describe the feature and link to the new `sketch/cont-<feature-name>.md` file.

@@ -1,6 +1,6 @@
 # rakuda 🐪
 
-`rakuda` is a type-safe HTTP router for Go, designed around a core philosophy of **compile-time safety** and **predictable lifecycle management**. It enforces a strict separation between route configuration and request handling through a dedicated `Builder` pattern, eliminating an entire class of runtime errors.
+`rakuda` is an HTTP router for Go, designed around a core philosophy of **compile-time safety** and **predictable lifecycle management**. It enforces a strict separation between route configuration and request handling through a dedicated `Builder` pattern, eliminating an entire class of runtime errors.
 
 The name "rakuda" has two meanings:
 - 「楽だ」(rakuda) - "It's easy" in Japanese
@@ -124,12 +124,6 @@ Key design principles:
 ```bash
 go get github.com/podhmo/rakuda
 ```
-
-## Documentation
-
-- [Design Document](./docs/router-design.md) - Detailed architecture and design decisions
-- [TODO](./TODO.md) - Current implementation status and roadmap
-- [AGENTS.md](./AGENTS.md) - Development guidelines and project metadata
 
 ## License
 

@@ -17,50 +17,40 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ## To Be Implemented
 
-### Core Router Implementation
-- [ ] **Builder Type**: Implement the `rakuda.Builder` type with internal configuration tree
+### Core Router Implementation (TDD)
+
+The key design principle is the **two-stage separation**: configuration stage (Builder) and execution stage (http.Handler). Routes and middlewares can be defined in any order without affecting behavior.
+
+- [ ] **Builder Type with Tests**: Implement the `rakuda.Builder` type with internal configuration tree
+  - [ ] Test: Builder creation and basic structure
   - [ ] Create `node` struct for configuration tree
   - [ ] Implement `NewBuilder()` constructor
+  - [ ] Test: Route registration in any order produces consistent results
   - [ ] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
-- [ ] **Build Process**: Implement the `Build()` method
+- [ ] **Build Process with Tests**: Implement the `Build()` method
+  - [ ] Test: Build creates immutable http.Handler
+  - [ ] Test: Order-independent route registration
   - [ ] DFS traversal of configuration tree
   - [ ] Context accumulation (path prefix and middleware chain)
   - [ ] Handler assembly with middleware wrapping
   - [ ] Integration with `http.ServeMux`
-- [ ] **Middleware Support**: Implement middleware functionality
+- [ ] **Middleware Support with Tests**: Implement middleware functionality
+  - [ ] Test: Global middleware application
+  - [ ] Test: Scoped middleware application
+  - [ ] Test: Middleware chain composition
   - [ ] `Use()` method for registering middlewares
   - [ ] Global middleware application
   - [ ] Scoped middleware application
   - [ ] Middleware chain composition
-- [ ] **Route Grouping**: Implement route grouping functionality
+- [ ] **Route Grouping with Tests**: Implement route grouping functionality
+  - [ ] Test: Nested route groups with path concatenation
+  - [ ] Test: Middleware inheritance in nested groups
   - [ ] `Route(pattern, fn)` method for nested routes
   - [ ] `Group(fn)` method for middleware-only groups
   - [ ] Proper path concatenation
   - [ ] Middleware inheritance
 
-### Testing Infrastructure
-- [ ] **Unit Tests**: Create comprehensive unit tests
-  - [ ] Builder configuration tests
-  - [ ] Middleware chain tests
-  - [ ] Route grouping tests
-  - [ ] Path parameter tests
-- [ ] **Integration Tests**: Create integration tests
-  - [ ] Full request/response cycle tests
-  - [ ] Multiple route group tests
-  - [ ] Middleware ordering tests
-- [ ] **Example Applications**: Create example applications
-  - [ ] Simple REST API example
-  - [ ] Middleware demonstration
-  - [ ] Nested groups example
-
-### Documentation and Tooling
-- [ ] **API Documentation**: Generate and publish Go package documentation
-- [ ] **Tutorial**: Create step-by-step tutorial for common use cases
-- [ ] **Performance Benchmarks**: Benchmark against other popular routers
-- [ ] **CI/CD**: Set up automated testing and linting
-
-### Advanced Features (Future)
-- [ ] **Error Handling**: Implement error handling utilities
-- [ ] **Request Context Helpers**: Add utilities for common request context patterns
-- [ ] **Testing Helpers**: Create test utilities for testing handlers
-- [ ] **Metrics Integration**: Add optional metrics hooks
+### Example Applications
+- [ ] **Simple REST API example**: Demonstrate basic usage
+- [ ] **Middleware demonstration**: Show global and scoped middleware
+- [ ] **Nested groups example**: Show route grouping patterns
