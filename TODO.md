@@ -23,6 +23,9 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] Refactor `JSON` function into a method on a `Responder` struct.
     - [x] Update tests to reflect the `Responder` struct changes.
     - [x] Remove the now-empty `responder` directory.
+- **Lift Function**:
+    - [x] Implement `lift` function to convert `func(req) (data, error)` into `http.Handler`.
+    - [x] Support custom status codes via `APIError` struct with a `StatusCode()` method.
 
 ## To Be Implemented
 
