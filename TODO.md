@@ -21,12 +21,12 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 The key design principle is the **two-stage separation**: configuration stage (Builder) and execution stage (http.Handler). Routes and middlewares can be defined in any order without affecting behavior.
 
-- [ ] **Builder Type with Tests**: Implement the `rakuda.Builder` type with internal configuration tree
-  - [ ] Test: Builder creation and basic structure
-  - [ ] Create `node` struct for configuration tree
-  - [ ] Implement `NewBuilder()` constructor
+- [-] **Builder Type with Tests**: Implement the `rakuda.Builder` type with internal configuration tree
+  - [x] Test: Builder creation and basic structure
+  - [x] Create `node` struct for configuration tree
+  - [x] Implement `NewBuilder()` constructor
   - [ ] Test: Route registration in any order produces consistent results
-  - [ ] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
+  - [x] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
 - [ ] **Build Process with Tests**: Implement the `Build()` method
   - [ ] Test: Build creates immutable http.Handler
   - [ ] Test: Order-independent route registration
