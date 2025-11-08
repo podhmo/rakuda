@@ -16,3 +16,5 @@ rfc-7876直書きは辛い
 
 - https://leapcell.io/blog/building-a-robust-error-handling-system-for-go-apis
 - https://techblog.hacomono.jp/entry/2025/08/19/110000
+
+せっかくだしencoding/json/v2専用にする？
