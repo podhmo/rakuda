@@ -78,6 +78,11 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] `Event` struct for sending named events.
   - [x] Add tests for SSE functionality.
 
+### rakudatest Test Helper ([sketch/plan-rakudatest.md](./sketch/plan-rakudatest.md))
+- [x] **Create `rakudatest/rakudatest.go`**: Define `Do` function and request builders.
+- [x] **Create Tests for the Helper**: Write `rakudatest/rakudatest_test.go`.
+- [x] **Refactor an Existing Test**: Update an existing test to use the new helpers.
+
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage
 - [x] **Middleware demonstration**: Show global and scoped middleware
