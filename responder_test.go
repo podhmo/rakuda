@@ -86,7 +86,7 @@ func TestResponder_SSE(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			rr := httptest.NewRecorder()
 			responder := NewResponder()
-			responder.DefaultLogger = &testLogger{t: t}
+			responder.defaultLogger = &testLogger{t: t}
 
 			ctx, cancel := context.WithCancel(req.Context())
 			req = req.WithContext(ctx)
@@ -202,7 +202,7 @@ func TestResponder_JSON(t *testing.T) {
 			defaultLogger := &testLogger{t: t, msg: "default"}
 
 			responder := NewResponder()
-			responder.DefaultLogger = defaultLogger
+			responder.defaultLogger = defaultLogger
 
 			if tt.useContextLogger {
 				req = WithLogger(req, contextLogger)

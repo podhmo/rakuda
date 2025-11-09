@@ -33,10 +33,7 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 
 			// For internal errors, log the actual error but return a generic message.
 			ctx := r.Context()
-			logger, ok := getLogger(ctx)
-			if !ok || logger == nil {
-				logger = responder.DefaultLogger
-			}
+			logger := responder.Logger(ctx)
 			logger.ErrorContext(ctx, "internal server error from lifted handler", "error", err)
 
 			r = WithStatusCode(r, http.StatusInternalServerError)

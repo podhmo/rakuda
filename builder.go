@@ -45,7 +45,7 @@ type OnConflictFunc func(b *Builder, routeKey string) error
 // DefaultOnConflict is the default conflict handler. It logs a warning and
 // returns nil, allowing the build process to continue.
 func DefaultOnConflict(b *Builder, routeKey string) error {
-	b.Logger.Warn("route conflict", "route", routeKey)
+	b.Logger().Warn("route conflict", "route", routeKey)
 	return nil
 }
 
@@ -56,7 +56,7 @@ type Builder struct {
 	node            *node
 	notFoundHandler http.Handler
 	OnConflict      OnConflictFunc
-	Logger          *slog.Logger
+	logger          *slog.Logger
 }
 
 // NewBuilder creates a new Builder instance.
@@ -64,8 +64,13 @@ func NewBuilder() *Builder {
 	return &Builder{
 		node:       &node{},
 		OnConflict: DefaultOnConflict,
-		Logger:     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+		logger:     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
+}
+
+// Logger returns the logger associated with the builder.
+func (b *Builder) Logger() *slog.Logger {
+	return b.logger
 }
 
 // NotFound sets a custom handler for 404 Not Found responses.
