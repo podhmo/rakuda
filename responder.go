@@ -86,16 +86,24 @@ func getStatusCode(ctx context.Context) int {
 
 // Responder handles writing JSON responses.
 type Responder struct {
-	// DefaultLogger is used when no logger is found in the request context.
+	// defaultLogger is used when no logger is found in the request context.
 	// If nil, a default slog.Logger is used.
-	DefaultLogger Logger
+	defaultLogger Logger
 }
 
 // NewResponder creates a new Responder with a default slog logger.
 func NewResponder() *Responder {
 	return &Responder{
-		DefaultLogger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+		defaultLogger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
+}
+
+// Logger returns the logger from the context if it exists, otherwise it returns the default logger.
+func (r *Responder) Logger(ctx context.Context) Logger {
+	if logger, ok := getLogger(ctx); ok {
+		return logger
+	}
+	return r.defaultLogger
 }
 
 // JSON marshals the 'data' payload to JSON and writes it to the response.
@@ -112,10 +120,7 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, data any) {
 
 	if data != nil {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
-			logger, ok := getLogger(ctx)
-			if !ok {
-				logger = r.DefaultLogger
-			}
+			logger := r.Logger(ctx)
 			logger.ErrorContext(ctx, "failed to encode json response", "error", err)
 		}
 	}
@@ -151,10 +156,7 @@ func (e Event[T]) eventData() any {
 // or *Event[U], it will be treated as a named event.
 func SSE[T any](responder *Responder, w http.ResponseWriter, req *http.Request, ch <-chan T) {
 	ctx := req.Context()
-	logger, ok := getLogger(ctx)
-	if !ok {
-		logger = responder.DefaultLogger
-	}
+	logger := responder.Logger(ctx)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
