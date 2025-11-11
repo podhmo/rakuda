@@ -187,6 +187,122 @@ func TestOnePtr(t *testing.T) {
 	})
 }
 
+func TestFormBinding(t *testing.T) {
+	tests := []struct {
+		name          string
+		contentType   string
+		body          string
+		dest          any
+		key           string
+		parser        any
+		reqType       Requirement
+		slice         bool
+		wantErr       bool
+		expectedValue any
+	}{
+		{
+			name:          "Form URL-Encoded - Single Value",
+			contentType:   "application/x-www-form-urlencoded",
+			body:          "name=jules&age=30",
+			dest:          new(string),
+			key:           "name",
+			parser:        parseString,
+			reqType:       Required,
+			wantErr:       false,
+			expectedValue: "jules",
+		},
+		{
+			name:          "Form URL-Encoded - Slice Value",
+			contentType:   "application/x-www-form-urlencoded",
+			body:          "hobbies=reading&hobbies=coding",
+			dest:          new([]string),
+			key:           "hobbies",
+			parser:        parseString,
+			slice:         true,
+			reqType:       Required,
+			wantErr:       false,
+			expectedValue: []string{"reading", "coding"},
+		},
+		{
+			name:        "Multipart Form - Single Value",
+			contentType: "multipart/form-data; boundary=boundary",
+			body: "--boundary\r\n" +
+				"Content-Disposition: form-data; name=\"name\"\r\n\r\n" +
+				"jules\r\n" +
+				"--boundary--",
+			dest:          new(string),
+			key:           "name",
+			parser:        parseString,
+			reqType:       Required,
+			wantErr:       false,
+			expectedValue: "jules",
+		},
+		{
+			name:        "Multipart Form - Slice Value",
+			contentType: "multipart/form-data; boundary=boundary",
+			body: "--boundary\r\n" +
+				"Content-Disposition: form-data; name=\"hobbies\"\r\n\r\n" +
+				"reading\r\n" +
+				"--boundary\r\n" +
+				"Content-Disposition: form-data; name=\"hobbies\"\r\n\r\n" +
+				"coding\r\n" +
+				"--boundary--",
+			dest:          new([]string),
+			key:           "hobbies",
+			parser:        parseString,
+			slice:         true,
+			reqType:       Required,
+			wantErr:       false,
+			expectedValue: []string{"reading", "coding"},
+		},
+		{
+			name:          "Form URL-Encoded - Required Not Found",
+			contentType:   "application/x-www-form-urlencoded",
+			body:          "name=jules",
+			dest:          new(int),
+			key:           "age",
+			parser:        parseInt,
+			reqType:       Required,
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", tt.contentType)
+			b := New(req, nil)
+			var err error
+
+			if tt.slice {
+				switch dest := tt.dest.(type) {
+				case *[]string:
+					err = Slice(b, dest, Form, tt.key, tt.parser.(Parser[string]), tt.reqType)
+					if !tt.wantErr {
+						if diff := cmp.Diff(tt.expectedValue, *dest); diff != "" {
+							t.Errorf("Slice() mismatch (-want +got):\n%s", diff)
+						}
+					}
+				}
+			} else {
+				switch dest := tt.dest.(type) {
+				case *string:
+					err = One(b, dest, Form, tt.key, tt.parser.(Parser[string]), tt.reqType)
+					if !tt.wantErr && *dest != tt.expectedValue.(string) {
+						t.Errorf("One() got = %v, want %v", *dest, tt.expectedValue)
+					}
+				case *int: // for not found test
+					err = One(b, dest, Form, tt.key, tt.parser.(Parser[int]), tt.reqType)
+				}
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Binding error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestSlice(t *testing.T) {
 	t.Run("Multiple Query Params", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/?ids=1&ids=2&ids=3", nil)
