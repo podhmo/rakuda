@@ -33,6 +33,23 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ## To Be Implemented
 
+### Binding Package ([sketch/plan-binding.md](./sketch/plan-binding.md))
+- [ ] **Create `binding/binding.go`**:
+    - [ ] Define the core types: `Binding`, `Source`, `Requirement`, `Parser`.
+    - [ ] Implement `New(req, pathValue) *Binding` constructor.
+    - [ ] Implement internal lookup helpers:
+        - [ ] `Lookup(source, key) (string, bool)`
+        - [ ] `valuesFromSource(source, key) ([]string, bool)`
+- [ ] **Implement Binding Functions**:
+    - [ ] `One[T any](...) error`
+    - [ ] `OnePtr[T any](...) error`
+    - [ ] `Slice[T any](...) error`
+    - [ ] `SlicePtr[T any](...) error`
+- [ ] **Create `binding/binding_test.go`**:
+    - [ ] Write comprehensive unit tests for all binding functions.
+- [ ] **Create `binding/README.md`**:
+    - [ ] Provide a simple but complete usage example.
+
 ### Core Router Implementation (TDD)
 
 The key design principle is the **two-stage separation**: configuration stage (Builder) and execution stage (http.Handler). Routes and middlewares can be defined in any order without affecting behavior.
