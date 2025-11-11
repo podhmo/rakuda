@@ -13,7 +13,10 @@ import (
 //   - If the error is nil, the returned value of type O is encoded as a JSON
 //     response with a 200 OK status.
 //   - If the error is not nil:
-//   - If the error has a StatusCode() int method, its status code is used for the response.
+//   - To perform a redirect, return a `*RedirectError`. Lift will handle the
+//     redirect and no further response will be written.
+//   - If the error has a StatusCode() int method (like `APIError`), its status
+//     code is used for the response.
 //   - Otherwise, a 500 Internal Server Error is returned.
 //   - The error message is returned as a JSON object: {"error": "message"}.
 //   - If both the returned value and the error are nil, it follows specific rules:
@@ -24,6 +27,12 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := action(r)
 		if err != nil {
+			var redirectErr *RedirectError
+			if errors.As(err, &redirectErr) {
+				http.Redirect(w, r, redirectErr.URL, redirectErr.Code)
+				return
+			}
+
 			var sc interface{ StatusCode() int }
 			if errors.As(err, &sc) {
 				r = WithStatusCode(r, sc.StatusCode())
