@@ -9,6 +9,27 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestResponder_HTML(t *testing.T) {
+	r := NewResponder()
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+
+	html := []byte("<h1>Hello, World!</h1>")
+	r.HTML(w, req, http.StatusOK, html)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Errorf("expected Content-Type %s, got %s", "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+	}
+
+	if w.Body.String() != string(html) {
+		t.Errorf("expected body %s, got %s", string(html), w.Body.String())
+	}
+}
+
 // testLogger adapts *testing.T to the responder.Logger interface.
 type testLogger struct {
 	t      *testing.T

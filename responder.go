@@ -40,6 +40,19 @@ func (e *APIError) Unwrap() error {
 	return e.err
 }
 
+// RedirectError is a special error type used to signal an HTTP redirect.
+// When this error is returned from a handler wrapped by Lift, the Lift
+// function will perform the redirect and stop further processing.
+type RedirectError struct {
+	URL  string
+	Code int
+}
+
+// Error implements the error interface.
+func (e *RedirectError) Error() string {
+	return fmt.Sprintf("redirect to %s with code %d", e.URL, e.Code)
+}
+
 // Logger defines the minimal interface for a structured error logger.
 // It is compatible with the slog.Logger and can be easily implemented
 // by wrappers around other loggers or for testing purposes.
@@ -123,6 +136,28 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, data any) {
 			logger := r.Logger(ctx)
 			logger.ErrorContext(ctx, "failed to encode json response", "error", err)
 		}
+	}
+}
+
+// Redirect returns a RedirectError that can be used with Lift to redirect the client.
+func (r *Responder) Redirect(url string, code int) error {
+	return &RedirectError{URL: url, Code: code}
+}
+
+// HTML sends an HTML response to the client. This method is intended for use in
+// standard http.Handlers, not with Lift, which is designed for JSON APIs.
+func (r *Responder) HTML(w http.ResponseWriter, req *http.Request, code int, html []byte) {
+	ctx := req.Context()
+
+	if err := ctx.Err(); err != nil {
+		return // Client disconnected
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(code)
+	if _, err := w.Write(html); err != nil {
+		logger := r.Logger(ctx)
+		logger.ErrorContext(ctx, "failed to write html response", "error", err)
 	}
 }
 
