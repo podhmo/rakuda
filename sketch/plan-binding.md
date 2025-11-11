@@ -82,7 +82,6 @@ The package will reside in a new `binding/` directory.
 
 After the initial implementation, the following features could be considered:
 
-- **Custom Validators**: Integration with a validation library or a way to attach custom validation functions to the binding process.
 - **Pre-defined Parsers**: Provide a set of common parsers (e.g., for `int`, `bool`, `time.Time`) in a sub-package like `binding/parsers`.
 
 Based on user feedback, the following features are explicitly **out of scope**:
