@@ -30,25 +30,22 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 - **rakudatest Test Helper**: Implemented a convenient test helper package for `http.Handler` testing. ([sketch/plan-rakudatest.md](./sketch/plan-rakudatest.md))
     - [x] Includes a generic `Do[T any]` function that integrates request execution, status code validation, optional response assertions, and JSON decoding into a single call.
     - [x] The `Do` function logs the full response body on a status code mismatch, which was the primary requirement.
+- **Binding Package**: Implemented a type-safe, reflect-free request data binding package. ([sketch/plan-binding.md](./sketch/plan-binding.md))
+    - [x] **Create `binding/binding.go`**:
+        - [x] Define the core types: `Binding`, `Source`, `Requirement`, `Parser`.
+        - [x] Implement `New(req, pathValue) *Binding` constructor.
+        - [x] Implement internal lookup helpers.
+    - [x] **Implement Binding Functions**:
+        - [x] `One[T any](...) error`
+        - [x] `OnePtr[T any](...) error`
+        - [x] `Slice[T any](...) error`
+        - [x] `SlicePtr[T any](...) error`
+    - [x] **Create `binding/binding_test.go`**:
+        - [x] Write comprehensive unit tests for all binding functions.
+    - [x] **Create `binding/README.md`**:
+        - [x] Provide a simple but complete usage example.
 
 ## To Be Implemented
-
-### Binding Package ([sketch/plan-binding.md](./sketch/plan-binding.md))
-- [ ] **Create `binding/binding.go`**:
-    - [ ] Define the core types: `Binding`, `Source`, `Requirement`, `Parser`.
-    - [ ] Implement `New(req, pathValue) *Binding` constructor.
-    - [ ] Implement internal lookup helpers:
-        - [ ] `Lookup(source, key) (string, bool)`
-        - [ ] `valuesFromSource(source, key) ([]string, bool)`
-- [ ] **Implement Binding Functions**:
-    - [ ] `One[T any](...) error`
-    - [ ] `OnePtr[T any](...) error`
-    - [ ] `Slice[T any](...) error`
-    - [ ] `SlicePtr[T any](...) error`
-- [ ] **Create `binding/binding_test.go`**:
-    - [ ] Write comprehensive unit tests for all binding functions.
-- [ ] **Create `binding/README.md`**:
-    - [ ] Provide a simple but complete usage example.
 
 ### Core Router Implementation (TDD)
 
