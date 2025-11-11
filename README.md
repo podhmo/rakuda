@@ -7,6 +7,7 @@ The name "rakuda" has two meanings:
 - 「ラクダ」(rakuda) - "Camel" in Japanese 🐪
 
 🚧 This library is currently under development.
+- https://pkg.go.dev/github/podhmo/rakuda
 
 ## Features
 
