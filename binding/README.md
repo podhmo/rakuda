@@ -10,6 +10,7 @@ Here is a simple example of how to use the `binding` package to extract data fro
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -49,25 +50,12 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 	b := binding.New(r, pathValue)
 
 	var params MyParams
-	var errs []error
-
-	// Bind the user ID from the URL path.
-	if err := binding.One(b, &params.ID, binding.Path, "id", parseInt, binding.Required); err != nil {
-		errs = append(errs, err)
-	}
-
-	// Bind the auth token from a header.
-	if err := binding.One(b, &params.Token, binding.Header, "X-Auth-Token", parseString, binding.Required); err != nil {
-		errs = append(errs, err)
-	}
-
-	// Bind the optional sort key from the query string.
-	if err := binding.OnePtr(b, &params.SortKey, binding.Query, "sort", parseString, binding.Optional); err != nil {
-		errs = append(errs, err)
-	}
-
-	if len(errs) > 0 {
-		http.Error(w, fmt.Sprintf("Bad Request: %v", errs), http.StatusBadRequest)
+	if err := errors.Join(
+		binding.One(b, &params.ID, binding.Path, "id", parseInt, binding.Required),
+		binding.One(b, &params.Token, binding.Header, "X-Auth-Token", parseString, binding.Required),
+		binding.OnePtr(b, &params.SortKey, binding.Query, "sort", parseString, binding.Optional),
+	); err != nil {
+		http.Error(w, fmt.Sprintf("Bad Request: %v", err), http.StatusBadRequest)
 		return
 	}
 
