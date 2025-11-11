@@ -36,18 +36,8 @@ type MyParams struct {
 }
 
 func myHandler(w http.ResponseWriter, r *http.Request) {
-	// In a real application, the pathValue function would be provided by your router.
-	// For this example, we'll simulate it.
-	pathValue := func(key string) string {
-		if key == "id" {
-			// Simulate extracting "123" from a path like "/users/123"
-			return "123"
-		}
-		return ""
-	}
-
-	// Create a new binder for the current request.
-	b := binding.New(r, pathValue)
+	// Create a new binder for the current request, passing r.PathValue directly.
+	b := binding.New(r, r.PathValue)
 
 	var params MyParams
 	if err := errors.Join(
@@ -70,9 +60,11 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/users/123", myHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users/{id}", myHandler)
+
 	fmt.Println("Server starting on port 8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -81,7 +73,7 @@ func main() {
 ### How to Run the Example
 
 1.  Save the code above as `main.go`.
-2.  Run `go mod init example` and `go mod tidy`.
+2.  Run `go mod init example` and `go mod tidy`. You may need to run `go get github.com/podhmo/rakuda/binding` as well.
 3.  Run `go run main.go`.
 4.  Send a request to the server:
 
@@ -90,8 +82,8 @@ func main() {
     curl -H "X-Auth-Token: mysecret" "http://localhost:8080/users/123?sort=name"
 
     # Request without the optional sort parameter
-    curl -H "X-Auth-Token: mysecret" "http://localhost:8080/users/123"
+    curl -H "X-Auth-Token: mysecret" "http://localhost:8080/users/456"
 
     # Request missing a required parameter (will result in a 400 Bad Request)
-    curl "http://localhost:8080/users/123?sort=name"
+    curl "http://localhost:8080/users/789?sort=name"
     ```
