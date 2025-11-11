@@ -1,4 +1,4 @@
-package rakuda
+package rakudamiddleware
 
 import (
 	"log/slog"
@@ -7,6 +7,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/podhmo/rakuda"
 )
 
 // Recovery is a middleware that recovers from panics, logs the panic, and returns a 500 Internal Server Error.
@@ -14,14 +16,14 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger, ok := getLogger(r.Context())
+				logger, ok := rakuda.GetLogger(r.Context())
 				if !ok {
 					logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
 				}
 				logger.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
 
-				r = WithStatusCode(r, http.StatusInternalServerError)
-				responder := NewResponder()
+				r = rakuda.WithStatusCode(r, http.StatusInternalServerError)
+				responder := rakuda.NewResponder()
 				responder.JSON(w, r, map[string]string{"error": http.StatusText(http.StatusInternalServerError)})
 			}
 		}()
@@ -50,7 +52,7 @@ type CORSConfig struct {
 
 // CORS returns a middleware that handles Cross-Origin Resource Sharing (CORS).
 // If config is nil, it uses default permissive settings.
-func CORS(config *CORSConfig) Middleware {
+func CORS(config *CORSConfig) rakuda.Middleware {
 	if config == nil {
 		config = &CORSConfig{
 			AllowedOrigins: []string{"*"},

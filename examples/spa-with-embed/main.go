@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/podhmo/rakuda"
+	"github.com/podhmo/rakuda/rakudamiddleware"
 )
 
 //go:embed static/*
@@ -23,7 +24,7 @@ func newRouter() *rakuda.Builder {
 	responder := rakuda.NewResponder()
 
 	// Global middleware: Recovery for all routes
-	builder.Use(rakuda.Recovery)
+	builder.Use(rakudamiddleware.Recovery)
 
 	// Serve static files from embedded filesystem
 	staticFS, err := fs.Sub(staticFiles, "static")
@@ -231,7 +232,7 @@ func run() error {
 
 	// Wrap the entire handler with CORS to catch all OPTIONS requests
 	// This ensures preflight requests are handled even for routes not explicitly registered
-	corsHandler := rakuda.CORS(&rakuda.CORSConfig{
+	corsHandler := rakudamiddleware.CORS(&rakudamiddleware.CORSConfig{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "Authorization"},

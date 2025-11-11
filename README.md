@@ -27,9 +27,10 @@ The primary entry point is `rakuda.Builder`, which is used to configure routes a
 package main
 
 import (
-    "net/http"
-    
-    "github.com/podhmo/rakuda"
+	"net/http"
+
+	"github.com/podhmo/rakuda"
+	"github.com/podhmo/rakuda/rakudamiddleware"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
     responder := rakuda.NewResponder()
     
     // Add global middleware
-    b.Use(rakuda.Recovery)
+    b.Use(rakudamiddleware.Recovery)
     
     // Define routes
     b.Get("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +57,10 @@ func main() {
     }))
     
     // Build the immutable handler
-    handler := b.Build()
+    handler, err := b.Build()
+    if err != nil {
+        panic(err)
+    }
     
     // Start the server
     http.ListenAndServe(":8080", handler)
@@ -111,7 +115,10 @@ b.Route("/api/v1", func(api *rakuda.Builder) {
     })
 })
 
-handler := b.Build()
+handler, err := b.Build()
+if err != nil {
+    panic(err)
+}
 ```
 
 #### Order-Independent Configuration
@@ -207,7 +214,7 @@ The `Recovery` middleware catches panics, logs them with stack traces, and retur
 b := rakuda.NewBuilder()
 
 // Apply recovery globally
-b.Use(rakuda.Recovery)
+b.Use(rakudamiddleware.Recovery)
 
 b.Get("/panic", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     panic("something went wrong")  // Will be caught and logged
@@ -222,10 +229,10 @@ The `CORS` middleware handles Cross-Origin Resource Sharing with configurable op
 b := rakuda.NewBuilder()
 
 // Use default permissive CORS settings
-b.Use(rakuda.CORS(nil))
+b.Use(rakudamiddleware.CORS(nil))
 
 // Or configure CORS explicitly
-b.Use(rakuda.CORS(&rakuda.CORSConfig{
+b.Use(rakudamiddleware.CORS(&rakudamiddleware.CORSConfig{
     AllowedOrigins: []string{"https://example.com"},
     AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
     AllowedHeaders: []string{"Content-Type", "Authorization"},

@@ -62,8 +62,8 @@ func WithLogger(r *http.Request, logger Logger) *http.Request {
 	return r.WithContext(ctx)
 }
 
-// getLogger retrieves the Logger from the context.
-func getLogger(ctx context.Context) (Logger, bool) {
+// GetLogger retrieves the Logger from the context.
+func GetLogger(ctx context.Context) (Logger, bool) {
 	logger, ok := ctx.Value(loggerKey).(Logger)
 	return logger, ok && logger != nil
 }
@@ -100,7 +100,7 @@ func NewResponder() *Responder {
 
 // Logger returns the logger from the context if it exists, otherwise it returns the default logger.
 func (r *Responder) Logger(ctx context.Context) Logger {
-	if logger, ok := getLogger(ctx); ok {
+	if logger, ok := GetLogger(ctx); ok {
 		return logger
 	}
 	return r.defaultLogger
