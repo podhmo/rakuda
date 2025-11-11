@@ -8,13 +8,14 @@ import (
 	"os"
 
 	"github.com/podhmo/rakuda"
+	"github.com/podhmo/rakuda/rakudamiddleware"
 )
 
 func newRouter() http.Handler {
 	builder := rakuda.NewBuilder()
 
 	// Use the recovery middleware globally
-	builder.Use(rakuda.Recovery)
+	builder.Use(rakudamiddleware.Recovery)
 
 	builder.Get("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Hello, world!")

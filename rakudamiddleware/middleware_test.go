@@ -1,4 +1,4 @@
-package rakuda
+package rakudamiddleware
 
 import (
 	"net/http"
