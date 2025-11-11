@@ -1,8 +1,8 @@
-# Package Naming Conventions
+# rakudamiddleware
 
-This document explains the reasoning behind the naming of certain packages in the `rakuda` project, specifically the `rakudamiddleware` package.
+This package provides a collection of middleware for the `rakuda` HTTP router.
 
-## The `rakudamiddleware` Package
+## Package Naming Conventions
 
 The name `rakudamiddleware` was chosen to be `goimports`-friendly. It is common for developers to create their own packages named `middleware` or `handler` within their application code. If `rakuda` also used these generic names, it could lead to naming collisions, which can be cumbersome to resolve.
 
