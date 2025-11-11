@@ -29,6 +29,9 @@ const (
 	Optional Requirement = false
 )
 
+// defaultMaxMemory is the default maximum memory size for parsing multipart forms.
+const defaultMaxMemory = 32 << 20 // 32 MB
+
 // Parser is a generic function that parses a string into a value of type T.
 // It returns an error if parsing fails.
 type Parser[T any] func(string) (T, error)
@@ -78,10 +81,12 @@ func (b *Binding) Lookup(source Source, key string) (string, bool) {
 		}
 		return "", false
 	case Form:
-		// To be safe, call ParseMultipartForm to handle both multipart and regular form data.
-		// Adjust the max memory size as needed.
-		// An error here is not fatal; PostForm will just be empty.
-		_ = b.req.ParseMultipartForm(32 << 20) // 32MB max memory
+		// Calling ParseMultipartForm is safe to call multiple times.
+		// According to the Go documentation, after the first call, subsequent calls have no effect.
+		// This parsing populates r.PostForm, which contains only values from the request body.
+		// We intentionally use r.PostForm instead of r.FormValue to strictly separate
+		// form data from URL query parameters, adhering to the package's design of explicit data sources.
+		_ = b.req.ParseMultipartForm(defaultMaxMemory)
 		if vs, ok := b.req.PostForm[key]; ok && len(vs) > 0 {
 			return vs[0], true
 		}
@@ -99,10 +104,12 @@ func (b *Binding) valuesFromSource(source Source, key string) ([]string, bool) {
 		}
 		return nil, false
 	case Form:
-		// To be safe, call ParseMultipartForm to handle both multipart and regular form data.
-		// Adjust the max memory size as needed.
-		// An error here is not fatal; PostForm will just be empty.
-		_ = b.req.ParseMultipartForm(32 << 20) // 32MB max memory
+		// Calling ParseMultipartForm is safe to call multiple times.
+		// According to the Go documentation, after the first call, subsequent calls have no effect.
+		// This parsing populates r.PostForm, which contains only values from the request body.
+		// We intentionally use r.PostForm instead of r.FormValue to strictly separate
+		// form data from URL query parameters, adhering to the package's design of explicit data sources.
+		_ = b.req.ParseMultipartForm(defaultMaxMemory)
 		if values, ok := b.req.PostForm[key]; ok && len(values) > 0 {
 			return values, true
 		}
