@@ -247,7 +247,8 @@ func (b *Builder) Build() (http.Handler, error) {
 	if notFoundHandler == nil {
 		responder := NewResponder()
 		notFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r = WithStatusCode(r, http.StatusNotFound)
+			ctx := NewContextWithStatusCode(r.Context(), http.StatusNotFound)
+			r = r.WithContext(ctx)
 			responder.JSON(w, r, map[string]string{"error": "not found"})
 		})
 	}

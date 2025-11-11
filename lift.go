@@ -39,7 +39,8 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 
 			var sc interface{ StatusCode() int }
 			if errors.As(err, &sc) {
-				r = WithStatusCode(r, sc.StatusCode())
+				ctx := NewContextWithStatusCode(r.Context(), sc.StatusCode())
+				r = r.WithContext(ctx)
 				responder.JSON(w, r, map[string]string{"error": err.Error()})
 				return
 			}
@@ -49,7 +50,8 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 			logger := responder.Logger(ctx)
 			logger.ErrorContext(ctx, "internal server error from lifted handler", "error", err)
 
-			r = WithStatusCode(r, http.StatusInternalServerError)
+			ctx = NewContextWithStatusCode(ctx, http.StatusInternalServerError)
+			r = r.WithContext(ctx)
 			responder.JSON(w, r, map[string]string{"error": "Internal Server Error"})
 			return
 		}

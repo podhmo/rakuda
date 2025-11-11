@@ -2,8 +2,10 @@ package rakuda
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,12 +32,34 @@ func TestResponder_HTML(t *testing.T) {
 	}
 }
 
-// testLogger adapts *testing.T to the responder.Logger interface.
-type testLogger struct {
-	t      *testing.T
-	called bool
-	msg    string
-	args   []any
+// testHandler is a slog.Handler that captures the last log record.
+type testHandler struct {
+	mu     sync.Mutex
+	record *slog.Record
+	attrs  []slog.Attr
+}
+
+func (h *testHandler) Enabled(context.Context, slog.Level) bool {
+	return true
+}
+
+func (h *testHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.record = &r
+	return nil
+}
+
+func (h *testHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.attrs = append(h.attrs, attrs...)
+	return h
+}
+
+func (h *testHandler) WithGroup(name string) slog.Handler {
+	// Not implemented for this test handler.
+	return h
 }
 
 func TestResponder_SSE(t *testing.T) {
@@ -107,7 +131,7 @@ func TestResponder_SSE(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			rr := httptest.NewRecorder()
 			responder := NewResponder()
-			responder.defaultLogger = &testLogger{t: t}
+			responder.defaultLogger = slog.New(&testHandler{})
 
 			ctx, cancel := context.WithCancel(req.Context())
 			req = req.WithContext(ctx)
@@ -143,13 +167,6 @@ func TestResponder_SSE(t *testing.T) {
 			}
 		})
 	}
-}
-
-func (l *testLogger) ErrorContext(ctx context.Context, msg string, args ...any) {
-	l.t.Helper()
-	l.called = true
-	l.msg = msg
-	l.args = args
 }
 
 func TestResponder_JSON(t *testing.T) {
@@ -219,17 +236,21 @@ func TestResponder_JSON(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			rr := httptest.NewRecorder()
 
-			contextLogger := &testLogger{t: t, msg: "context"}
-			defaultLogger := &testLogger{t: t, msg: "default"}
+			contextHandler := &testHandler{}
+			contextLogger := slog.New(contextHandler)
+			defaultHandler := &testHandler{}
+			defaultLogger := slog.New(defaultHandler)
 
 			responder := NewResponder()
 			responder.defaultLogger = defaultLogger
 
 			if tt.useContextLogger {
-				req = WithLogger(req, contextLogger)
+				ctx := NewContextWithLogger(req.Context(), contextLogger)
+				req = req.WithContext(ctx)
 			}
 			if tt.statusCode != 0 {
-				req = WithStatusCode(req, tt.statusCode)
+				ctx := NewContextWithStatusCode(req.Context(), tt.statusCode)
+				req = req.WithContext(ctx)
 			}
 
 			// Act
@@ -256,25 +277,25 @@ func TestResponder_JSON(t *testing.T) {
 			// Assert Logger
 			if tt.wantErrLog {
 				if tt.wantDefaultLogger {
-					if !defaultLogger.called {
+					if defaultHandler.record == nil {
 						t.Error("expected default logger to be called, but it was not")
 					}
-					if contextLogger.called {
+					if contextHandler.record != nil {
 						t.Error("expected context logger not to be called, but it was")
 					}
 				} else {
-					if !contextLogger.called {
+					if contextHandler.record == nil {
 						t.Error("expected context logger to be called, but it was not")
 					}
-					if defaultLogger.called {
+					if defaultHandler.record != nil {
 						t.Error("expected default logger not to be called, but it was")
 					}
 				}
 			} else {
-				if contextLogger.called {
+				if contextHandler.record != nil {
 					t.Errorf("expected no logger to be called, but context logger was")
 				}
-				if defaultLogger.called {
+				if defaultHandler.record != nil {
 					t.Errorf("expected no logger to be called, but default logger was")
 				}
 			}

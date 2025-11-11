@@ -3,9 +3,12 @@ package rakudatest
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/podhmo/rakuda"
 )
 
 // ResponseAssertion is a function that performs an assertion on an HTTP response.
@@ -17,6 +20,9 @@ type ResponseAssertion func(t *testing.T, res *http.Response, body []byte)
 // assertions on the response, and finally decodes the JSON response body into
 // a specified type `T`.
 //
+// It injects a test-specific logger into the request context, which logs messages
+// to the test output via `t.Logf`.
+//
 // If the actual status code does not match `wantStatusCode`, the test is failed
 // with `t.Fatalf`, and the full response body is logged for debugging.
 //
@@ -25,6 +31,11 @@ type ResponseAssertion func(t *testing.T, res *http.Response, body []byte)
 // If decoding the JSON body fails, the test is also failed with `t.Fatalf`.
 func Do[T any](t *testing.T, h http.Handler, req *http.Request, wantStatusCode int, assertions ...ResponseAssertion) T {
 	t.Helper()
+
+	// Inject a logger that writes to the test output.
+	testLogger := slog.New(NewTHandler(t, slog.LevelDebug))
+	ctx := rakuda.NewContextWithLogger(req.Context(), testLogger)
+	req = req.WithContext(ctx)
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

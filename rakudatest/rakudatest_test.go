@@ -1,53 +1,89 @@
 package rakudatest
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/podhmo/rakuda"
 )
 
-type simpleResponse struct {
-	Message string `json:"message"`
-}
-
-func TestDo_Success(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("X-Test-Header", "hello-world")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message": "hello"}`))
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-
-	// Define a ResponseAssertion to check the header
-	assertHeader := func(t *testing.T, res *http.Response, body []byte) {
-		t.Helper()
-		want := "hello-world"
-		if got := res.Header.Get("X-Test-Header"); got != want {
-			t.Errorf("expected header X-Test-Header to be %q, but got %q", want, got)
+// spyHandler is a handler that retrieves a logger from the context and logs messages.
+// It fails the test if the logger is not found.
+func spyHandler(t *testing.T) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger, ok := rakuda.LoggerFromContext(r.Context())
+		if !ok {
+			t.Error("logger not found in context")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
-	}
 
-	got := Do[simpleResponse](t, handler, req, http.StatusOK, assertHeader)
+		logger.DebugContext(r.Context(), "this is a debug message")
+		logger.InfoContext(r.Context(), "this is an info message", slog.String("request_id", "xyz-123"))
+		logger.WarnContext(r.Context(), "this is a warning message")
+		logger.ErrorContext(r.Context(), "this is an error message")
 
-	want := simpleResponse{Message: "hello"}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("decoded response mismatch (-want +got):\n%s", diff)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "ok"}`))
 	}
 }
 
-func TestDo_NoContent(t *testing.T) {
+func TestDo(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
+		if r.URL.Path == "/no-content" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id": 1, "name": "test"}`))
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	got := Do[any](t, handler, req, http.StatusNoContent)
+	t.Run("success", func(t *testing.T) {
+		type Body struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}
+		want := Body{ID: 1, Name: "test"}
+		req := httptest.NewRequest("GET", "/", nil)
+		got := Do[Body](t, handler, req, http.StatusOK)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("response body mismatch (-want +got):\n%s", diff)
+		}
+	})
 
-	if got != nil {
-		t.Errorf("expected a nil response for 204 No Content, but got %+v", got)
-	}
+	t.Run("with_assertions", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		Do[any](t, handler, req, http.StatusOK, func(t *testing.T, res *http.Response, body []byte) {
+			if contentType := res.Header.Get("Content-Type"); contentType != "application/json" {
+				t.Errorf("expected Content-Type to be application/json, got %s", contentType)
+			}
+			if !strings.Contains(string(body), `"name": "test"`) {
+				t.Errorf("response body does not contain expected string")
+			}
+		})
+	})
+
+	t.Run("no_content", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/no-content", nil)
+		got := Do[any](t, handler, req, http.StatusNoContent)
+		if got != nil {
+			t.Errorf("expected nil body for 204 No Content, got %v", got)
+		}
+	})
+}
+
+func TestDo_WithLogger(t *testing.T) {
+	handler := spyHandler(t)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	Do[map[string]string](t, handler, req, http.StatusOK)
+
+	// To verify the output, run the test with the verbose flag:
+	// go test -v ./...
+	// The output should contain the log messages from spyHandler.
 }

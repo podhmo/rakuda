@@ -94,7 +94,8 @@ func newRouter() *rakuda.Builder {
 				b := binding.New(r, r.PathValue)
 				var params UserIDParams
 				if err := binding.One(b, &params.ID, binding.Path, "id", parseString, binding.Required); err != nil {
-					r = rakuda.WithStatusCode(r, http.StatusBadRequest)
+					ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusBadRequest)
+					r = r.WithContext(ctx)
 					responder.JSON(w, r, map[string]string{
 						"error": err.Error(),
 					})
@@ -111,7 +112,8 @@ func newRouter() *rakuda.Builder {
 			}))
 
 			users.Post("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				r = rakuda.WithStatusCode(r, http.StatusCreated)
+				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusCreated)
+				r = r.WithContext(ctx)
 				responder.JSON(w, r, map[string]any{
 					"message": "User created successfully",
 					"id":      "new-user-id",
@@ -147,7 +149,8 @@ func loggingMiddleware() rakuda.Middleware {
 			logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 			// Add logger to request context
-			r = rakuda.WithLogger(r, logger)
+			ctx := rakuda.NewContextWithLogger(r.Context(), logger)
+			r = r.WithContext(ctx)
 
 			logger.InfoContext(r.Context(), "request started",
 				"method", r.Method,
@@ -204,7 +207,8 @@ func adminOnlyMiddleware() rakuda.Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user := r.Context().Value("user")
 			if user == nil {
-				r = rakuda.WithStatusCode(r, http.StatusUnauthorized)
+				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusUnauthorized)
+				r = r.WithContext(ctx)
 				responder := rakuda.NewResponder()
 				responder.JSON(w, r, map[string]string{
 					"error": "Authentication required",
@@ -215,7 +219,8 @@ func adminOnlyMiddleware() rakuda.Middleware {
 			// Simulate admin check (in real app, check user role from database)
 			userMap, ok := user.(map[string]any)
 			if !ok {
-				r = rakuda.WithStatusCode(r, http.StatusForbidden)
+				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusForbidden)
+				r = r.WithContext(ctx)
 				responder := rakuda.NewResponder()
 				responder.JSON(w, r, map[string]string{
 					"error": "Insufficient permissions",
@@ -226,7 +231,8 @@ func adminOnlyMiddleware() rakuda.Middleware {
 			// For demo: tokens containing "admin" are considered admin tokens
 			token, _ := userMap["token"].(string)
 			if token == "" || len(token) < 5 || token[:5] != "admin" {
-				r = rakuda.WithStatusCode(r, http.StatusForbidden)
+				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusForbidden)
+				r = r.WithContext(ctx)
 				responder := rakuda.NewResponder()
 				responder.JSON(w, r, map[string]string{
 					"error": "Admin access required",
