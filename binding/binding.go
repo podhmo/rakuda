@@ -18,6 +18,7 @@ const (
 	Header Source = "header"
 	Cookie Source = "cookie"
 	Path   Source = "path"
+	Form   Source = "form"
 )
 
 // Requirement specifies whether a value is required or optional.
@@ -27,6 +28,9 @@ const (
 	Required Requirement = true
 	Optional Requirement = false
 )
+
+// defaultMaxMemory is the default maximum memory size for parsing multipart forms.
+const defaultMaxMemory = 32 << 20 // 32 MB
 
 // Parser is a generic function that parses a string into a value of type T.
 // It returns an error if parsing fails.
@@ -76,6 +80,17 @@ func (b *Binding) Lookup(source Source, key string) (string, bool) {
 			}
 		}
 		return "", false
+	case Form:
+		// Calling ParseMultipartForm is safe to call multiple times.
+		// According to the Go documentation, after the first call, subsequent calls have no effect.
+		// This parsing populates r.PostForm, which contains only values from the request body.
+		// We intentionally use r.PostForm instead of r.FormValue to strictly separate
+		// form data from URL query parameters, adhering to the package's design of explicit data sources.
+		_ = b.req.ParseMultipartForm(defaultMaxMemory)
+		if vs, ok := b.req.PostForm[key]; ok && len(vs) > 0 {
+			return vs[0], true
+		}
+		return "", false
 	}
 	return "", false
 }
@@ -85,6 +100,17 @@ func (b *Binding) valuesFromSource(source Source, key string) ([]string, bool) {
 	switch source {
 	case Query:
 		if values, ok := b.req.URL.Query()[key]; ok && len(values) > 0 {
+			return values, true
+		}
+		return nil, false
+	case Form:
+		// Calling ParseMultipartForm is safe to call multiple times.
+		// According to the Go documentation, after the first call, subsequent calls have no effect.
+		// This parsing populates r.PostForm, which contains only values from the request body.
+		// We intentionally use r.PostForm instead of r.FormValue to strictly separate
+		// form data from URL query parameters, adhering to the package's design of explicit data sources.
+		_ = b.req.ParseMultipartForm(defaultMaxMemory)
+		if values, ok := b.req.PostForm[key]; ok && len(values) > 0 {
 			return values, true
 		}
 		return nil, false

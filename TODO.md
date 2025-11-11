@@ -44,6 +44,7 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
         - [x] Write comprehensive unit tests for all binding functions.
     - [x] **Create `binding/README.md`**:
         - [x] Provide a simple but complete usage example.
+    - [x] **Add Form Value Binding**: Extend the package to support `application/x-www-form-urlencoded` and `multipart/form-data`. ([sketch/plan-binding-form-values.md](./sketch/plan-binding-form-values.md))
 
 ## To Be Implemented
 
