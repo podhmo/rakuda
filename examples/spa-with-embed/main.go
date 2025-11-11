@@ -13,11 +13,26 @@ import (
 	"time"
 
 	"github.com/podhmo/rakuda"
+	"github.com/podhmo/rakuda/binding"
 	"github.com/podhmo/rakuda/rakudamiddleware"
 )
 
 //go:embed static/*
 var staticFiles embed.FS
+
+// Parser for string values
+var parseString binding.Parser[string] = func(s string) (string, error) {
+	return s, nil
+}
+
+// Structs for binding
+type UserIDParams struct {
+	ID string
+}
+
+type AuthHeader struct {
+	Authorization string
+}
 
 func newRouter() *rakuda.Builder {
 	builder := rakuda.NewBuilder()
@@ -75,11 +90,21 @@ func newRouter() *rakuda.Builder {
 			}))
 
 			users.Get("/{id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				userID := r.PathValue("id")
+				// Use binding to extract path parameter
+				b := binding.New(r, r.PathValue)
+				var params UserIDParams
+				if err := binding.One(b, &params.ID, binding.Path, "id", parseString, binding.Required); err != nil {
+					r = rakuda.WithStatusCode(r, http.StatusBadRequest)
+					responder.JSON(w, r, map[string]string{
+						"error": err.Error(),
+					})
+					return
+				}
+
 				responder.JSON(w, r, map[string]any{
-					"id":       userID,
-					"name":     fmt.Sprintf("User %s", userID),
-					"email":    fmt.Sprintf("user%s@example.com", userID),
+					"id":       params.ID,
+					"name":     fmt.Sprintf("User %s", params.ID),
+					"email":    fmt.Sprintf("user%s@example.com", params.ID),
 					"joined":   "2024-01-15",
 					"verified": true,
 				})
@@ -145,12 +170,20 @@ func loggingMiddleware() rakuda.Middleware {
 func authMiddleware() rakuda.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
+			// Use binding to extract Authorization header
+			b := binding.New(r, r.PathValue)
+			var auth AuthHeader
+			err := binding.One(b, &auth.Authorization, binding.Header, "Authorization", parseString, binding.Optional)
+			if err != nil {
+				// If there's an error parsing (unlikely for string), just continue
+				next.ServeHTTP(w, r)
+				return
+			}
 
 			// Simple token validation (for demo purposes)
-			if authHeader != "" && len(authHeader) > 7 {
+			if auth.Authorization != "" && len(auth.Authorization) > 7 {
 				// Extract token and simulate user lookup
-				token := authHeader[7:] // Remove "Bearer " prefix
+				token := auth.Authorization[7:] // Remove "Bearer " prefix
 				ctx := context.WithValue(r.Context(), "user", map[string]any{
 					"id":    "user-123",
 					"name":  "Demo User",
