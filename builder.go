@@ -36,36 +36,31 @@ type node struct {
 	children []*node
 }
 
-// OnConflictFunc defines a function to be called when a route conflict is detected.
-// It receives the builder and the conflicting route key. It can return an error
-// to halt the build process. If it returns nil, the conflict is ignored and the
-// duplicate route is not registered.
-type OnConflictFunc func(b *Builder, routeKey string) error
-
-// DefaultOnConflict is the default conflict handler. It logs a warning and
-// returns nil, allowing the build process to continue.
-func DefaultOnConflict(b *Builder, routeKey string) error {
-	b.Logger.Warn("route conflict", "route", routeKey)
-	return nil
-}
-
 // Builder is the configuration object for the router.
 // It is used to define routes and middlewares.
 // It does not implement http.Handler.
 type Builder struct {
 	node            *node
 	notFoundHandler http.Handler
-	OnConflict      OnConflictFunc
-	Logger          *slog.Logger
+	// OnConflict defines a function to be called when a route conflict is detected.
+	// It receives the builder and the conflicting route key. It can return an error
+	// to halt the build process. If it returns nil, the conflict is ignored and the
+	// duplicate route is not registered.
+	OnConflict func(b *Builder, routeKey string) error
+	Logger     *slog.Logger
 }
 
 // NewBuilder creates a new Builder instance.
 func NewBuilder() *Builder {
-	return &Builder{
-		node:       &node{},
-		OnConflict: DefaultOnConflict,
-		Logger:     slog.New(slog.NewJSONHandler(os.Stderr, nil)),
+	b := &Builder{
+		node:   &node{},
+		Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
+	b.OnConflict = func(b *Builder, routeKey string) error {
+		b.Logger.Warn("route conflict", "route", routeKey)
+		return nil
+	}
+	return b
 }
 
 // NotFound sets a custom handler for 404 Not Found responses.
