@@ -29,7 +29,11 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 		if err != nil {
 			var redirectErr *RedirectError
 			if errors.As(err, &redirectErr) {
-				http.Redirect(w, r, redirectErr.URL, redirectErr.Code)
+				code := redirectErr.Code
+				if code == 0 {
+					code = http.StatusFound
+				}
+				http.Redirect(w, r, redirectErr.URL, code)
 				return
 			}
 
