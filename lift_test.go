@@ -11,7 +11,7 @@ func TestLift_Redirect(t *testing.T) {
 
 	t.Run("with code", func(t *testing.T) {
 		action := func(r *http.Request) (any, error) {
-			return nil, responder.Redirect("/redirect", http.StatusFound)
+			return nil, &RedirectError{URL: "/redirect", Code: http.StatusFound}
 		}
 
 		handler := Lift(responder, action)

@@ -44,14 +44,14 @@ func main() {
     
     // Define routes
     b.Get("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        responder.JSON(w, r, map[string]string{
+        responder.JSON(w, r, http.StatusOK, map[string]string{
             "message": "Welcome to rakuda!",
         })
     }))
     
     b.Get("/users/{id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         userID := r.PathValue("id")
-        responder.JSON(w, r, map[string]string{
+        responder.JSON(w, r, http.StatusOK, map[string]string{
             "id": userID,
             "name": "John Doe",
         })
@@ -154,11 +154,8 @@ responder := rakuda.NewResponder()
 b.Get("/users/{id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     userID := r.PathValue("id")
     
-    // Set status code in context
-    r = rakuda.WithStatusCode(r, http.StatusOK)
-    
-    // Respond with JSON
-    responder.JSON(w, r, map[string]string{
+    // Respond with JSON, providing the status code directly
+    responder.JSON(w, r, http.StatusOK, map[string]string{
         "id": userID,
         "name": "John Doe",
     })
@@ -167,9 +164,9 @@ b.Get("/users/{id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 
 The `Responder` automatically:
 - Sets the correct `Content-Type` header
+- Sets the HTTP status code
 - Encodes data to JSON
 - Logs encoding errors using the logger from context (or a default logger)
-- Respects the status code set in the request context
 
 ### Simplified Handlers with `Lift`
 
@@ -240,18 +237,6 @@ b.Use(rakudamiddleware.CORS(&rakudamiddleware.CORSConfig{
     AllowCredentials: true,
     MaxAge: 3600,
 }))
-```
-
-### Context Helpers
-
-Store logger and status code in request context for consistent handling:
-
-```go
-// Store a logger in context (typically done in middleware)
-r = rakuda.WithLogger(r, logger)
-
-// Set status code (can be done anywhere in the handler chain)
-r = rakuda.WithStatusCode(r, http.StatusCreated)
 ```
 
 ### Custom 404 Handler

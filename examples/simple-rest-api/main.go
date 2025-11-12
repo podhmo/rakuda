@@ -17,13 +17,13 @@ func newRouter() *rakuda.Builder {
 
 	// 1. A simple handler that returns a JSON response.
 	builder.Get("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		responder.JSON(w, r, map[string]string{"message": "hello world"})
+		responder.JSON(w, r, http.StatusOK, map[string]string{"message": "hello world"})
 	}))
 
 	// 2. A handler that uses a path parameter.
 	builder.Get("/hello/{name}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		responder.JSON(w, r, map[string]string{"message": fmt.Sprintf("hello %s", name)})
+		responder.JSON(w, r, http.StatusOK, map[string]string{"message": fmt.Sprintf("hello %s", name)})
 	}))
 
 	return builder

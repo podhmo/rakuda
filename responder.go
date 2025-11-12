@@ -75,17 +75,33 @@ func (r *Responder) Logger(ctx context.Context) *slog.Logger {
 	return r.defaultLogger
 }
 
+// Error sends a JSON error response.
+// For 5xx errors, it logs the internal error but sends a generic message to the client.
+// For 4xx errors, it sends the original error message.
+func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode int, err error) {
+	ctx := req.Context()
+	logger := r.Logger(ctx)
+	logger.ErrorContext(ctx, "API Error", "status", statusCode, "error", err)
+
+	errMsg := err.Error()
+	if statusCode >= http.StatusInternalServerError {
+		// Do not expose internal error details to the client
+		errMsg = "Internal Server Error"
+	}
+
+	r.JSON(w, req, statusCode, map[string]string{"error": errMsg})
+}
+
 // JSON marshals the 'data' payload to JSON and writes it to the response.
-func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, data any) {
+func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, statusCode int, data any) {
 	ctx := req.Context()
 
 	if err := ctx.Err(); err != nil {
 		return // Client disconnected
 	}
 
-	status := StatusCodeFromContext(ctx)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
+	w.WriteHeader(statusCode)
 
 	if data != nil {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -95,9 +111,9 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, data any) {
 	}
 }
 
-// Redirect returns a RedirectError that can be used with Lift to redirect the client.
-func (r *Responder) Redirect(url string, code int) error {
-	return &RedirectError{URL: url, Code: code}
+// Redirect performs an HTTP redirect.
+func (r *Responder) Redirect(w http.ResponseWriter, req *http.Request, url string, code int) {
+	http.Redirect(w, req, url, code)
 }
 
 // HTML sends an HTML response to the client. This method is intended for use in
