@@ -61,9 +61,22 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ## To Be Implemented
 
-### Logging ([sketch/plan-error-log-with-pos.md](./sketch/plan-error-log-with-pos.md))
-- [x] **Add caller position to error logs**: Use the `runtime` package to capture the caller's stack frame for more precise error logging locations.
-- [x] **Conditional error logging**: Only log errors for 500+ status codes or when the log level is set to Debug.
+### Centralized Logging ([sketch/plan-sharing-logger.md](./sketch/plan-sharing-logger.md))
+- [ ] **Implement Functional Options for Builder**:
+    - [ ] Create `BuilderConfig` struct and `BuilderOption` type.
+    - [ ] Implement `WithLogger(l *slog.Logger) BuilderOption`.
+    - [ ] Update `NewBuilder(...)` to accept `...BuilderOption`.
+- [ ] **Implement Logger Injection Middleware**:
+    - [ ] In `Builder.Build()`, create a middleware that injects a logger into the request context.
+    - [ ] The middleware should add contextual attributes (`method`, `path`) to the logger.
+    - [ ] The middleware must check for a pre-existing logger (from `rakudatest`) and not overwrite it.
+- [ ] **Refactor Components**:
+    - [ ] Remove the `Logger()` method from the `Responder` struct.
+    - [ ] Update `Responder` methods (`Error`, `JSON`, etc.) to get the logger directly from the context.
+    - [ ] Update `rakudamiddleware.Recovery` to get the logger from the context.
+- [ ] **Implement Fallback with Warning**:
+    - [ ] Modify `LoggerFromContext` to fall back to `slog.Default()`.
+    - [ ] Use `sync.Once` to log a warning message the first time the fallback occurs.
 
 ### Core Router Implementation (TDD)
 
