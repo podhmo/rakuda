@@ -45,6 +45,12 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] **Create `binding/README.md`**:
         - [x] Provide a simple but complete usage example.
     - [x] **Add Form Value Binding**: Extend the package to support `application/x-www-form-urlencoded` and `multipart/form-data`. ([sketch/plan-binding-form-values.md](./sketch/plan-binding-form-values.md))
+- **Test Logger**: Add a t.Logf-based logger to rakudatest. ([sketch/plan-test-logger.md](./sketch/plan-test-logger.md))
+    - [x] Implement an `slog.Handler` that writes to `*testing.T` via `t.Logf`.
+    - [x] Update `rakudatest.Do` to inject the test logger into the request context.
+    - [x] Add tests to verify the logger is injected and works correctly.
+    - [x] Refactor codebase to use `*slog.Logger` directly, removing custom interface.
+    - [x] Centralize context helper functions in `context.go`.
 
 ## To Be Implemented
 
@@ -104,11 +110,3 @@ The key design principle is the **two-stage separation**: configuration stage (B
 ### CLI
 - [x] **proutes utility**: Add a utility to display registered handlers.
     - [x] Add `-proutes` flag to the example application.
-
-### Test Logger
-- [ ] **Test Logger**: Add a t.Logf-based logger to rakudatest. ([sketch/plan-test-logger.md](./sketch/plan-test-logger.md))
-    - [ ] Define a `Logger` interface in a new `log` package.
-    - [ ] Create context utilities for the logger (`log.NewContext`, `log.FromContext`).
-    - [ ] Implement an `slog.Handler` that writes to `*testing.T` via `t.Logf`.
-    - [ ] Update `rakudatest.Do` to inject the test logger into the request context.
-    - [ ] Add tests to verify the logger is injected and works correctly.
