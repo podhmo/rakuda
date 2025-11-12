@@ -44,7 +44,7 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
         - [x] Write comprehensive unit tests for all binding functions.
     - [x] **Create `binding/README.md`**:
         - [x] Provide a simple but complete usage example.
-    - [x] **Add Form Value Binding**: Extend the package to support `application/x-www-form-urlencoded` and `multipart/form-data`. ([sketch/plan-binding-form-values.md](./sketch/plan-binding-form-values.md))
+    - [x] **Add Form Value Binding**: Extend the package to support `application/x-w-form-urlencoded` and `multipart/form-data`. ([sketch/plan-binding-form-values.md](./sketch/plan-binding-form-values.md))
 - **Test Logger**: Add a t.Logf-based logger to rakudatest. ([sketch/plan-test-logger.md](./sketch/plan-test-logger.md))
     - [x] Implement an `slog.Handler` that writes to `*testing.T` via `t.Logf`.
     - [x] Update `rakudatest.Do` to inject the test logger into the request context.
@@ -77,59 +77,33 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ## To Be Implemented
 
-### Core Router Implementation (TDD)
+### Form Value Binding ([sketch/plan-binding-form-values.md](./sketch/plan-binding-form-values.md))
+- [ ] Introduce a `Form` Source.
+- [ ] Update value retrieval logic to use `r.PostForm`.
+- [ ] No public API changes are needed.
+- [ ] Write comprehensive tests for form binding.
 
-The key design principle is the **two-stage separation**: configuration stage (Builder) and execution stage (http.Handler). Routes and middlewares can be defined in any order without affecting behavior.
+### Structured Error Responses ([sketch/plan-binding-join.md](./sketch/plan-binding-join.md))
+- [ ] Define `binding.Error` and `binding.ValidationErrors` structs.
+- [ ] Implement the `binding.Join` function.
+- [ ] Update core binding functions to return `*binding.Error`.
+- [ ] Modify `responder.Error` to handle `*binding.ValidationErrors`.
+- [ ] Update examples to use `binding.Join`.
+- [ ] Add tests for new structured error responses.
 
-- [x] **Builder Type with Tests**: Implement the `rakuda.Builder` type with internal configuration tree
-  - [x] Test: Builder creation and basic structure
-  - [x] Create `node` struct for configuration tree
-  - [x] Implement `NewBuilder()` constructor
-  - [x] Test: Route registration in any order produces consistent results
-  - [x] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
-- [x] **Build Process with Tests**: Implement the `Build()` method
-  - [x] Test: Build creates immutable http.Handler
-  - [x] Test: Order-independent route registration
-  - [x] DFS traversal of configuration tree
-  - [x] Context accumulation (path prefix and middleware chain)
-  - [x] Handler assembly with middleware wrapping
-  - [x] Integration with `http.ServeMux`
-- [x] **Middleware Support with Tests**: Implement middleware functionality
-  - [x] Test: Global middleware application
-  - [x] Test: Scoped middleware application
-  - [x] Test: Middleware chain composition
-  - [x] `Use()` method for registering middlewares
-  - [x] Global middleware application
-  - [x] Scoped middleware application
-  - [x] Middleware chain composition
-- [-] **Route Grouping with Tests**: Implement route grouping functionality
-  - [x] Test: Nested route groups with path concatenation
-  - [x] Test: Middleware inheritance in nested groups
-  - [x] `Route(pattern, fn)` method for nested routes
-  - [x] `Group(fn)` method for middleware-only groups
-  - [x] Proper path concatenation
-  - [x] Middleware inheritance
-- [x] **Not Found Handler**: Support for custom 404 handlers.
-  - [x] `NotFound(handler)` method on Builder.
-  - [x] Default JSON 404 response if no handler is provided.
-  - [x] Test: Default handler behavior.
-  - [x] Test: Custom handler behavior.
-- [x] **Route Conflict Handling**: Add configurable behavior for duplicate route registrations.
-  - [x] `OnConflict` field in `Builder` (`Warn` or `Error`).
-  - [x] `Build()` method returns an error on conflict when configured to do so.
-  - [x] Add tests for both `Warn` and `Error` behaviors.
+### Binding Package ([sketch/plan-binding.md](./sketch/plan-binding.md))
+- [ ] Create `binding/binding.go` with core types.
+- [ ] Implement binding functions: `One`, `OnePtr`, `Slice`, `SlicePtr`.
+- [ ] Create `binding/binding_test.go` with comprehensive tests.
+- [ ] Create `binding/README.md` with a usage example.
 
-### SSE Responder
-- [x] **Server-Sent Events (SSE) Support**: Add a responder for streaming data.
-  - [x] `SSE` function to handle `text/event-stream` responses.
-  - [x] `Event` struct for sending named events.
-  - [x] Add tests for SSE functionality.
+### Centralized Logging ([sketch/plan-sharing-logger.md](./sketch/plan-sharing-logger.md))
+- [ ] Implement functional options for `Builder` with `BuilderConfig` and `WithLogger`.
+- [ ] Implement a logger injection middleware in `Builder.Build()`.
+- [ ] Refactor `Responder` and `rakudamiddleware.Recovery` to get the logger from the context.
+- [ ] Implement fallback to `slog.Default()` with a `sync.Once` warning.
 
-### Example Applications
-- [x] **Simple REST API example**: Demonstrate basic usage
-- [x] **Middleware demonstration**: Show global and scoped middleware
-- [ ] **Nested groups example**: Show route grouping patterns
-
-### CLI
-- [x] **proutes utility**: Add a utility to display registered handlers.
-    - [x] Add `-proutes` flag to the example application.
+### SSE Responder ([sketch/plan-sse-responder.md](./sketch/plan-sse-responder.md))
+- [ ] Implement the `SSE` function in `responder.go`.
+- [ ] Add `*Event` helper for sending named events.
+- [ ] Add tests for SSE functionality in `responder_test.go`.
