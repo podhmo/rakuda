@@ -250,10 +250,9 @@ func TestConflictHandling(t *testing.T) {
 	})
 
 	t.Run("ErrorOnConflictWithCustomFunc", func(t *testing.T) {
-		b := NewBuilder()
-		b.OnConflict = func(b *Builder, routeKey string) error {
+		b := NewBuilder(WithOnConflict(func(b *Builder, routeKey string) error {
 			return errors.New("custom conflict error")
-		}
+		}))
 		b.Get("/conflict", handler1)
 		b.Get("/conflict", handler2)
 
@@ -280,10 +279,9 @@ func TestConflictHandling(t *testing.T) {
 	})
 
 	t.Run("ConflictInNestedRouteWithError", func(t *testing.T) {
-		b := NewBuilder()
-		b.OnConflict = func(b *Builder, routeKey string) error {
+		b := NewBuilder(WithOnConflict(func(b *Builder, routeKey string) error {
 			return errors.New("nested conflict")
-		}
+		}))
 		b.Route("/api", func(b *Builder) {
 			b.Get("/users", handler1)
 		})
