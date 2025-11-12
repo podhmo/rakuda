@@ -22,16 +22,9 @@ func NewContextWithLogger(ctx context.Context, l *slog.Logger) context.Context {
 }
 
 // LoggerFromContext retrieves the Logger from the context.
-// The bool return value indicates whether a logger was found in the context.
-func LoggerFromContext(ctx context.Context) (*slog.Logger, bool) {
-	l, ok := ctx.Value(loggerKey).(*slog.Logger)
-	return l, ok
-}
-
-// LoggerFromContextOrDefault retrieves the Logger from the context.
 // If no logger is found, it falls back to slog.Default() and logs a warning on the first call.
-func LoggerFromContextOrDefault(ctx context.Context) *slog.Logger {
-	if l, ok := LoggerFromContext(ctx); ok {
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if l, ok := ctx.Value(loggerKey).(*slog.Logger); ok {
 		return l
 	}
 

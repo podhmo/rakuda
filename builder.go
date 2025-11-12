@@ -231,7 +231,7 @@ func (b *Builder) Build() (http.Handler, error) {
 	loggingMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// If a logger is already in the context (e.g., from rakudatest), don't overwrite it.
-			if _, ok := LoggerFromContext(r.Context()); !ok {
+			if _, ok := r.Context().Value(loggerKey).(*slog.Logger); !ok {
 				logger := b.config.Logger.With(
 					slog.String("method", r.Method),
 					slog.String("path", r.URL.Path),

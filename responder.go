@@ -26,7 +26,7 @@ func NewResponder() *Responder {
 // For 5xx errors, it sends a generic message to the client.
 func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode int, err error) {
 	ctx := req.Context()
-	logger := LoggerFromContextOrDefault(ctx)
+	logger := LoggerFromContext(ctx)
 
 	if statusCode >= http.StatusInternalServerError || logger.Enabled(ctx, slog.LevelDebug) {
 		attrs := []slog.Attr{
@@ -85,7 +85,7 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, statusCode in
 			enc.SetIndent("", "  ")
 		}
 		if err := enc.Encode(data); err != nil {
-			logger := LoggerFromContextOrDefault(ctx)
+			logger := LoggerFromContext(ctx)
 			logger.ErrorContext(ctx, "failed to encode json response", "error", err)
 		}
 	}
@@ -108,7 +108,7 @@ func (r *Responder) HTML(w http.ResponseWriter, req *http.Request, code int, htm
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
 	if _, err := w.Write(html); err != nil {
-		logger := LoggerFromContextOrDefault(ctx)
+		logger := LoggerFromContext(ctx)
 		logger.ErrorContext(ctx, "failed to write html response", "error", err)
 	}
 }
@@ -143,7 +143,7 @@ func (e Event[T]) eventData() any {
 // or *Event[U], it will be treated as a named event.
 func SSE[T any](responder *Responder, w http.ResponseWriter, req *http.Request, ch <-chan T) {
 	ctx := req.Context()
-	logger := LoggerFromContextOrDefault(ctx)
+	logger := LoggerFromContext(ctx)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {

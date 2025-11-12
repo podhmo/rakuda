@@ -39,7 +39,7 @@ func HTTPLog(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		logger := rakuda.LoggerFromContextOrDefault(r.Context())
+		logger := rakuda.LoggerFromContext(r.Context())
 
 		logger.InfoContext(r.Context(), "request",
 			"method", r.Method,
