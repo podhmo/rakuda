@@ -1,5 +1,11 @@
 # 悩ましい
 
+名前の管理（パッケージ名の管理）
+- rakudamiddlewareは参照実装なのでrakuda-prefixになっている
+  - 実際のアプリを作る作者のために名前を空けておきたい
+- bindingはそのまま
+  - parserをデフォルトで作成したいがこれも参照実装？
+
 Loggerの管理
 - RespoderはDefaultLoggerをもたなくてよいのではないか？
 - 先頭のミドルウェアでLoggerを設定したいかも？
