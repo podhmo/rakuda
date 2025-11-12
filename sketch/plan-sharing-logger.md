@@ -169,9 +169,12 @@ func Recovery(next http.Handler) http.Handler {
 }
 ```
 
-### 4. Impact on `rakudatest`
+### 4. Impact on `rakudatest` and Further Considerations
 
 This design remains fully compatible with `rakudatest`. Tests can inject a custom logger into the request context, and that logger will be found and used by `LoggerFromContext`, correctly overriding any application-level logger.
+
+However, a key implementation detail must be handled carefully:
+- **Test Logger Precedence**: The logger injection middleware, which is prepended by the `Builder`, runs on every request. There is a risk that this middleware could overwrite (or shadow) a custom logger that was injected into the context by a test helper like `rakudatest.Do`. The middleware's implementation must first check if a logger already exists in the context. If one is present, it should *not* be replaced, ensuring that the test-specific logger always takes precedence.
 
 ## Open Questions
 
