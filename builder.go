@@ -39,6 +39,11 @@ type node struct {
 // BuilderConfig holds the configuration for a Builder.
 type BuilderConfig struct {
 	Logger *slog.Logger
+	// OnConflict defines a function to be called when a route conflict is detected.
+	// It receives the builder and the conflicting route key. It can return an error
+	// to halt the build process. If it returns nil, the conflict is ignored and the
+	// duplicate route is not registered.
+	OnConflict func(b *Builder, routeKey string) error
 }
 
 // WithLogger sets the logger for the Builder.
@@ -48,18 +53,20 @@ func WithLogger(l *slog.Logger) func(*BuilderConfig) {
 	}
 }
 
+// WithOnConflict sets the OnConflict handler for the Builder.
+func WithOnConflict(onConflict func(b *Builder, routeKey string) error) func(*BuilderConfig) {
+	return func(c *BuilderConfig) {
+		c.OnConflict = onConflict
+	}
+}
+
 // Builder is the configuration object for the router.
 // It is used to define routes and middlewares.
 // It does not implement http.Handler.
 type Builder struct {
 	node            *node
 	notFoundHandler http.Handler
-	// OnConflict defines a function to be called when a route conflict is detected.
-	// It receives the builder and the conflicting route key. It can return an error
-	// to halt the build process. If it returns nil, the conflict is ignored and the
-	// duplicate route is not registered.
-	OnConflict func(b *Builder, routeKey string) error
-	config     *BuilderConfig
+	config          *BuilderConfig
 }
 
 // NewBuilder creates a new Builder instance with the given options.
@@ -80,9 +87,9 @@ func NewBuilder(options ...func(*BuilderConfig)) *Builder {
 	}
 
 	// Set default OnConflict after options, so a custom logger is used if provided.
-	if b.OnConflict == nil {
-		b.OnConflict = func(b *Builder, routeKey string) error {
-			b.config.Logger.Warn("route conflict", "route", routeKey)
+	if config.OnConflict == nil {
+		config.OnConflict = func(b *Builder, routeKey string) error {
+			config.Logger.Warn("route conflict", "route", routeKey)
 			return nil
 		}
 	}
@@ -144,7 +151,7 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 		pattern: pattern,
 	}
 	b.node.children = append(b.node.children, childNode)
-	childBuilder := &Builder{node: childNode, config: b.config, OnConflict: b.OnConflict}
+	childBuilder := &Builder{node: childNode, config: b.config}
 	fn(childBuilder)
 }
 
@@ -152,7 +159,7 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 func (b *Builder) Group(fn func(b *Builder)) {
 	childNode := &node{}
 	b.node.children = append(b.node.children, childNode)
-	childBuilder := &Builder{node: childNode, config: b.config, OnConflict: b.OnConflict}
+	childBuilder := &Builder{node: childNode, config: b.config}
 	fn(childBuilder)
 }
 
@@ -257,7 +264,7 @@ func (b *Builder) Build() (http.Handler, error) {
 				routeKey := ha.method + " " + fullPattern
 
 				if _, exists := registered[routeKey]; exists {
-					if err := b.OnConflict(b, routeKey); err != nil {
+					if err := b.config.OnConflict(b, routeKey); err != nil {
 						return err
 					}
 					continue // Skip registration
