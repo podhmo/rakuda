@@ -1,9 +1,7 @@
 package rakudamiddleware
 
 import (
-	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/podhmo/rakuda"
@@ -41,10 +39,7 @@ func HTTPLog(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		logger, ok := rakuda.LoggerFromContext(r.Context())
-		if !ok {
-			logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
-		}
+		logger := rakuda.LoggerFromContextOrDefault(r.Context())
 
 		logger.InfoContext(r.Context(), "request",
 			"method", r.Method,

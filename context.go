@@ -2,8 +2,8 @@ package rakuda
 
 import (
 	"context"
-	"io"
 	"log/slog"
+	"sync"
 )
 
 // contextKey is the type for keys stored in context.
@@ -14,20 +14,32 @@ const (
 	loggerKey = contextKey("logger")
 )
 
+var logFallbackOnce sync.Once
+
 // NewContextWithLogger returns a new context with the provided Logger.
 func NewContextWithLogger(ctx context.Context, l *slog.Logger) context.Context {
 	return context.WithValue(ctx, loggerKey, l)
 }
 
 // LoggerFromContext retrieves the Logger from the context.
-// If no logger is found, it returns a disabled logger and false.
+// The bool return value indicates whether a logger was found in the context.
 func LoggerFromContext(ctx context.Context) (*slog.Logger, bool) {
 	l, ok := ctx.Value(loggerKey).(*slog.Logger)
-	if !ok {
-		// Return a no-op logger if none is found.
-		return slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
-			Level: slog.LevelError + 1, // Disable all levels
-		})), false
+	return l, ok
+}
+
+// LoggerFromContextOrDefault retrieves the Logger from the context.
+// If no logger is found, it falls back to slog.Default() and logs a warning on the first call.
+func LoggerFromContextOrDefault(ctx context.Context) *slog.Logger {
+	if l, ok := LoggerFromContext(ctx); ok {
+		return l
 	}
-	return l, true
+
+	logFallbackOnce.Do(func() {
+		// Use a background context for the warning log because the request context
+		// might be canceled, which would prevent the warning from being logged.
+		slog.Default().WarnContext(context.Background(), "Logger not found in context, falling back to default logger. This may indicate a misconfiguration.")
+	})
+
+	return slog.Default()
 }

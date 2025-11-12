@@ -36,6 +36,18 @@ type node struct {
 	children []*node
 }
 
+// BuilderConfig holds the configuration for a Builder.
+type BuilderConfig struct {
+	Logger *slog.Logger
+}
+
+// WithLogger sets the logger for the Builder.
+func WithLogger(l *slog.Logger) func(*BuilderConfig) {
+	return func(c *BuilderConfig) {
+		c.Logger = l
+	}
+}
+
 // Builder is the configuration object for the router.
 // It is used to define routes and middlewares.
 // It does not implement http.Handler.
@@ -47,19 +59,34 @@ type Builder struct {
 	// to halt the build process. If it returns nil, the conflict is ignored and the
 	// duplicate route is not registered.
 	OnConflict func(b *Builder, routeKey string) error
-	Logger     *slog.Logger
+	config     *BuilderConfig
 }
 
-// NewBuilder creates a new Builder instance.
-func NewBuilder() *Builder {
-	b := &Builder{
-		node:   &node{},
+// NewBuilder creates a new Builder instance with the given options.
+func NewBuilder(options ...func(*BuilderConfig)) *Builder {
+	// Initialize with default configuration
+	config := &BuilderConfig{
 		Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
-	b.OnConflict = func(b *Builder, routeKey string) error {
-		b.Logger.Warn("route conflict", "route", routeKey)
-		return nil
+
+	// Apply functional options
+	for _, option := range options {
+		option(config)
 	}
+
+	b := &Builder{
+		node:   &node{},
+		config: config,
+	}
+
+	// Set default OnConflict after options, so a custom logger is used if provided.
+	if b.OnConflict == nil {
+		b.OnConflict = func(b *Builder, routeKey string) error {
+			b.config.Logger.Warn("route conflict", "route", routeKey)
+			return nil
+		}
+	}
+
 	return b
 }
 
@@ -117,7 +144,7 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 		pattern: pattern,
 	}
 	b.node.children = append(b.node.children, childNode)
-	childBuilder := &Builder{node: childNode}
+	childBuilder := &Builder{node: childNode, config: b.config, OnConflict: b.OnConflict}
 	fn(childBuilder)
 }
 
@@ -125,7 +152,7 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 func (b *Builder) Group(fn func(b *Builder)) {
 	childNode := &node{}
 	b.node.children = append(b.node.children, childNode)
-	childBuilder := &Builder{node: childNode}
+	childBuilder := &Builder{node: childNode, config: b.config, OnConflict: b.OnConflict}
 	fn(childBuilder)
 }
 
@@ -193,6 +220,22 @@ func (b *Builder) Build() (http.Handler, error) {
 	mux := http.NewServeMux()
 	registered := make(map[string]struct{})
 
+	// Middleware to inject the logger into the request context.
+	loggingMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// If a logger is already in the context (e.g., from rakudatest), don't overwrite it.
+			if _, ok := LoggerFromContext(r.Context()); !ok {
+				logger := b.config.Logger.With(
+					slog.String("method", r.Method),
+					slog.String("path", r.URL.Path),
+				)
+				ctx := NewContextWithLogger(r.Context(), logger)
+				r = r.WithContext(ctx)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	var traverse func(*node, string, []Middleware) error
 	traverse = func(n *node, prefix string, inheritedMiddlewares []Middleware) error {
 		// Phase 1: Collect middlewares for the current node.
@@ -239,7 +282,7 @@ func (b *Builder) Build() (http.Handler, error) {
 		return nil
 	}
 
-	if err := traverse(b.node, "/", []Middleware{}); err != nil {
+	if err := traverse(b.node, "/", []Middleware{loggingMiddleware}); err != nil {
 		return nil, err
 	}
 

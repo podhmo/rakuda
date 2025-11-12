@@ -1,6 +1,7 @@
 package rakuda
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -137,9 +138,11 @@ func TestResponder_SSE(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			rr := httptest.NewRecorder()
 			responder := NewResponder()
-			responder.defaultLogger = slog.New(&testHandler{})
 
-			ctx, cancel := context.WithCancel(req.Context())
+			// Create a logger with a test handler to capture output.
+			testLogger := slog.New(&testHandler{})
+			ctx := NewContextWithLogger(req.Context(), testLogger)
+			ctx, cancel := context.WithCancel(ctx)
 			req = req.WithContext(ctx)
 
 			ch := make(chan any, len(tt.messages))
@@ -180,9 +183,9 @@ func TestResponder_Error_Logging(t *testing.T) {
 		handler := &testHandler{level: slog.LevelInfo}
 		logger := slog.New(handler)
 		responder := NewResponder()
-		responder.defaultLogger = logger
 
 		req := httptest.NewRequest("GET", "/", nil)
+		req = req.WithContext(NewContextWithLogger(req.Context(), logger))
 		w := httptest.NewRecorder()
 		err := NewAPIError(http.StatusNotFound, errors.New("not found"))
 
@@ -197,9 +200,9 @@ func TestResponder_Error_Logging(t *testing.T) {
 		handler := &testHandler{level: slog.LevelDebug}
 		logger := slog.New(handler)
 		responder := NewResponder()
-		responder.defaultLogger = logger
 
 		req := httptest.NewRequest("GET", "/", nil)
+		req = req.WithContext(NewContextWithLogger(req.Context(), logger))
 		w := httptest.NewRecorder()
 		err := NewAPIError(http.StatusBadRequest, errors.New("bad request"))
 
@@ -217,9 +220,9 @@ func TestResponder_Error_Logging(t *testing.T) {
 		handler := &testHandler{level: slog.LevelInfo} // Non-debug level
 		logger := slog.New(handler)
 		responder := NewResponder()
-		responder.defaultLogger = logger
 
 		req := httptest.NewRequest("GET", "/", nil)
+		req = req.WithContext(NewContextWithLogger(req.Context(), logger))
 		w := httptest.NewRecorder()
 		err := errors.New("internal server error")
 
@@ -236,9 +239,9 @@ func TestResponder_Error_WithSource(t *testing.T) {
 	handler := &testHandler{level: slog.LevelDebug} // Ensure logging is enabled
 	logger := slog.New(handler)
 	responder := NewResponder()
-	responder.defaultLogger = logger
 
 	req := httptest.NewRequest("GET", "/", nil)
+	req = req.WithContext(NewContextWithLogger(req.Context(), logger))
 	w := httptest.NewRecorder()
 
 	// Action: Create an error with position.
@@ -282,67 +285,65 @@ func TestResponder_JSON(t *testing.T) {
 	}
 
 	tests := []struct {
-		name              string
-		data              any
-		useContextLogger  bool
-		statusCode        int // 0 means default
-		wantStatusCode    int
-		wantBody          string
-		wantErrLog        bool
-		wantDefaultLogger bool
-		pretty            bool
+		name           string
+		data           any
+		useContext     bool // if true, a test logger is injected into the context. if false, context is empty.
+		statusCode     int  // 0 means default
+		wantStatusCode int
+		wantBody       string
+		wantErrLog     bool
+		pretty         bool
 	}{
 		{
-			name:             "success - 200 OK",
-			data:             responseData{Name: "Gopher", Age: 10},
-			useContextLogger: true,
-			statusCode:       0, // default
-			wantStatusCode:   http.StatusOK,
-			wantBody:         `{"name":"Gopher","age":10}` + "\n",
+			name:           "success - 200 OK",
+			data:           responseData{Name: "Gopher", Age: 10},
+			useContext:     true,
+			statusCode:     0, // default
+			wantStatusCode: http.StatusOK,
+			wantBody:       `{"name":"Gopher","age":10}` + "\n",
 		},
 		{
-			name:             "success - pretty",
-			data:             responseData{Name: "Gopher", Age: 10},
-			useContextLogger: true,
-			statusCode:       0, // default
-			wantStatusCode:   http.StatusOK,
-			pretty:           true,
-			wantBody:         "{\n  \"name\": \"Gopher\",\n  \"age\": 10\n}\n",
+			name:           "success - pretty",
+			data:           responseData{Name: "Gopher", Age: 10},
+			useContext:     true,
+			statusCode:     0, // default
+			wantStatusCode: http.StatusOK,
+			pretty:         true,
+			wantBody:       "{\n  \"name\": \"Gopher\",\n  \"age\": 10\n}\n",
 		},
 		{
-			name:             "success - 201 Created",
-			data:             responseData{Name: "Gopher", Age: 10},
-			useContextLogger: true,
-			statusCode:       http.StatusCreated,
-			wantStatusCode:   http.StatusCreated,
-			wantBody:         `{"name":"Gopher","age":10}` + "\n",
+			name:           "success - 201 Created",
+			data:           responseData{Name: "Gopher", Age: 10},
+			useContext:     true,
+			statusCode:     http.StatusCreated,
+			wantStatusCode: http.StatusCreated,
+			wantBody:       `{"name":"Gopher","age":10}` + "\n",
 		},
 		{
-			name:             "success - no content",
-			data:             nil,
-			useContextLogger: true,
-			statusCode:       http.StatusNoContent,
-			wantStatusCode:   http.StatusNoContent,
-			wantBody:         "",
+			name:           "success - no content",
+			data:           nil,
+			useContext:     true,
+			statusCode:     http.StatusNoContent,
+			wantStatusCode: http.StatusNoContent,
+			wantBody:       "",
 		},
 		{
-			name:             "error - json marshal failure with context logger",
-			data:             make(chan int), // Cannot be marshaled
-			useContextLogger: true,
-			statusCode:       http.StatusInternalServerError,
-			wantStatusCode:   http.StatusInternalServerError,
-			wantBody:         "",
-			wantErrLog:       true,
+			name:           "error - json marshal failure with context logger",
+			data:           make(chan int), // Cannot be marshaled
+			useContext:     true,
+			statusCode:     http.StatusInternalServerError,
+			wantStatusCode: http.StatusInternalServerError,
+			wantBody:       "",
+			wantErrLog:     true,
 		},
 		{
-			name:              "error - json marshal failure with default logger",
-			data:              make(chan int), // Cannot be marshaled
-			useContextLogger:  false,
-			statusCode:        http.StatusInternalServerError,
-			wantStatusCode:    http.StatusInternalServerError,
-			wantBody:          "",
-			wantErrLog:        true,
-			wantDefaultLogger: true,
+			name:           "error - json marshal failure with fallback logger",
+			data:           make(chan int), // Cannot be marshaled
+			useContext:     false,
+			statusCode:     http.StatusInternalServerError,
+			wantStatusCode: http.StatusInternalServerError,
+			wantBody:       "",
+			wantErrLog:     true,
 		},
 	}
 
@@ -356,18 +357,25 @@ func TestResponder_JSON(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, target, nil)
 			rr := httptest.NewRecorder()
 
-			contextHandler := &testHandler{}
+			// Setup loggers
+			var contextBuf bytes.Buffer
+			contextHandler := slog.NewJSONHandler(&contextBuf, nil)
 			contextLogger := slog.New(contextHandler)
-			defaultHandler := &testHandler{}
-			defaultLogger := slog.New(defaultHandler)
+
+			var defaultBuf bytes.Buffer
+			defaultHandler := slog.NewJSONHandler(&defaultBuf, nil)
+			originalDefault := slog.Default()
+			slog.SetDefault(slog.New(defaultHandler))
+			defer slog.SetDefault(originalDefault)
+			logFallbackOnce = sync.Once{} // Reset fallback warning
 
 			responder := NewResponder()
-			responder.defaultLogger = defaultLogger
 
-			if tt.useContextLogger {
+			if tt.useContext {
 				ctx := NewContextWithLogger(req.Context(), contextLogger)
 				req = req.WithContext(ctx)
 			}
+
 			// Act
 			statusCode := tt.statusCode
 			if statusCode == 0 {
@@ -395,27 +403,30 @@ func TestResponder_JSON(t *testing.T) {
 
 			// Assert Logger
 			if tt.wantErrLog {
-				if tt.wantDefaultLogger {
-					if defaultHandler.record == nil {
-						t.Error("expected default logger to be called, but it was not")
-					}
-					if contextHandler.record != nil {
-						t.Error("expected context logger not to be called, but it was")
-					}
-				} else {
-					if contextHandler.record == nil {
+				if tt.useContext {
+					if contextBuf.Len() == 0 {
 						t.Error("expected context logger to be called, but it was not")
 					}
-					if defaultHandler.record != nil {
+					if defaultBuf.Len() != 0 {
 						t.Error("expected default logger not to be called, but it was")
+					}
+				} else { // Fallback case
+					if defaultBuf.Len() == 0 {
+						t.Error("expected default logger to be called, but it was not")
+					}
+					if !strings.Contains(defaultBuf.String(), "failed to encode json response") {
+						t.Error("default logger did not contain the expected error message")
+					}
+					if contextBuf.Len() != 0 {
+						t.Error("expected context logger not to be called, but it was")
 					}
 				}
 			} else {
-				if contextHandler.record != nil {
-					t.Errorf("expected no logger to be called, but context logger was")
+				if contextBuf.Len() != 0 {
+					t.Errorf("expected no logger to be called, but context logger was: %s", contextBuf.String())
 				}
-				if defaultHandler.record != nil {
-					t.Errorf("expected no logger to be called, but default logger was")
+				if defaultBuf.Len() != 0 && !strings.Contains(defaultBuf.String(), "Logger not found in context") {
+					t.Errorf("expected no logger to be called, but default logger was: %s", defaultBuf.String())
 				}
 			}
 		})

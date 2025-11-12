@@ -1,9 +1,8 @@
 package rakudamiddleware
 
 import (
-	"log/slog"
+	"errors"
 	"net/http"
-	"os"
 	"runtime/debug"
 
 	"github.com/podhmo/rakuda"
@@ -14,15 +13,12 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger, ok := rakuda.LoggerFromContext(r.Context())
-				if !ok {
-					logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
-				}
+				logger := rakuda.LoggerFromContextOrDefault(r.Context())
 				logger.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
 
 				// Use the new Error method for a standardized response
 				responder := rakuda.NewResponder()
-				responder.Error(w, r, http.StatusInternalServerError, http.ErrAbortHandler) // http.ErrAbortHandler is just a sentinel error
+				responder.Error(w, r, http.StatusInternalServerError, errors.New("a panic occurred"))
 			}
 		}()
 		next.ServeHTTP(w, r)
