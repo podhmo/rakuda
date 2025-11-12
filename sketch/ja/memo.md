@@ -34,3 +34,6 @@ SSEが機能するか試せてない
   - json dump時のオプションの設定（responder?）
 - 手軽なdeploy
 - web uiを付けるのに楽をしたい（ローカルで利用）
+- bindingで利用するparserの自作は面倒なのでは？
+- OpenAPI,,,
+  - symgoを使ってコードを読む案 https://github.com/podhmo/go-scan/tree/main/examples/docgen
