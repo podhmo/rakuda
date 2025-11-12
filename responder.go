@@ -47,7 +47,7 @@ func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode i
 	if statusCode >= http.StatusInternalServerError || logger.Enabled(ctx, slog.LevelDebug) {
 		attrs := []slog.Attr{
 			slog.Int("status", statusCode),
-			slog.String("error", err.Error()),
+			slog.String("error", fmt.Sprintf("%+v", err)),
 		}
 
 		var apiErr *APIError
