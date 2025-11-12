@@ -12,12 +12,12 @@ import (
 )
 
 // spyHandler is a handler that retrieves a logger from the context and logs messages.
-// It fails the test if the logger is not found.
+// It fails the test if the logger is not found or is the default logger.
 func spyHandler(t *testing.T) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		logger, ok := rakuda.LoggerFromContext(r.Context())
-		if !ok {
-			t.Error("logger not found in context")
+		logger := rakuda.LoggerFromContext(r.Context())
+		if logger == slog.Default() {
+			t.Error("expected a specific logger from context, but got the default logger")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

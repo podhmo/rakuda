@@ -13,7 +13,7 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger := rakuda.LoggerFromContextOrDefault(r.Context())
+				logger := rakuda.LoggerFromContext(r.Context())
 				logger.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
 
 				// Use the new Error method for a standardized response
