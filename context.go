@@ -31,4 +31,3 @@ func LoggerFromContext(ctx context.Context) (*slog.Logger, bool) {
 	}
 	return l, true
 }
-

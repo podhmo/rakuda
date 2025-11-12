@@ -1,14 +1,17 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"flag"
 	"os"
 
 	"github.com/podhmo/rakuda"
+	"github.com/podhmo/rakuda/binding"
 )
 
 var responder = rakuda.NewResponder()
@@ -37,6 +40,34 @@ func actionMe(r *http.Request) (User, error) {
 	return user, nil
 }
 
+// actionGist is an action that demonstrates data binding and structured error responses.
+type Gist struct {
+	ID    int     `json:"id"`
+	Token string  `json:"-"`
+	Sort  *string `json:"sort,omitempty"`
+}
+
+func actionGist(r *http.Request) (Gist, error) {
+	var params Gist
+	b := binding.New(r, r.PathValue)
+
+	if err := binding.Join(
+		binding.One(b, &params.ID, binding.Path, "id", strconv.Atoi, binding.Required),
+		binding.One(b, &params.Token, binding.Header, "X-Auth-Token", func(s string) (string, error) { return s, nil }, binding.Required),
+		binding.OnePtr(b, &params.Sort, binding.Query, "sort", func(s string) (string, error) { return s, nil }, binding.Optional),
+	); err != nil {
+		// Lift will automatically handle the *binding.ValidationErrors
+		// and the responder will format it into a detailed JSON response.
+		return params, err
+	}
+
+	if params.Token != "secret" {
+		return params, rakuda.NewAPIError(http.StatusUnauthorized, errors.New("invalid token"))
+	}
+
+	return params, nil
+}
+
 func newRouter() *rakuda.Builder {
 	builder := rakuda.NewBuilder()
 
@@ -48,6 +79,9 @@ func newRouter() *rakuda.Builder {
 
 	// 3. A handler that uses rakuda.Lift to simplify returning data and errors.
 	builder.Get("/me", rakuda.Lift(responder, actionMe))
+
+	// 4. A handler demonstrating data binding with structured error responses.
+	builder.Get("/gists/{id}", rakuda.Lift(responder, actionGist))
 
 	return builder
 }

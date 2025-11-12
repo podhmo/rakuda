@@ -3,10 +3,13 @@ package rakuda
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/podhmo/rakuda/binding"
 )
 
 // Responder handles writing JSON responses.
@@ -38,6 +41,12 @@ func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode i
 	ctx := req.Context()
 	logger := r.Logger(ctx)
 	logger.ErrorContext(ctx, "API Error", "status", statusCode, "error", err)
+
+	var vErrs *binding.ValidationErrors
+	if errors.As(err, &vErrs) {
+		r.JSON(w, req, statusCode, vErrs)
+		return
+	}
 
 	errMsg := err.Error()
 	if statusCode >= http.StatusInternalServerError {

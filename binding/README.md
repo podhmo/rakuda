@@ -1,23 +1,32 @@
 # Package binding
 
-The `binding` package provides a type-safe, reflect-free, and expression-oriented way to bind data from HTTP requests to Go structs.
+The `binding` package provides a type-safe, reflect-free, and expression-oriented way to bind data from HTTP requests to Go structs. It is designed to produce structured, user-friendly error responses out of the box when integrated with the `rakuda` Lift and Responder components.
+
+## Features
+
+- **Type-Safe**: Uses generics to ensure type safety at compile time.
+- **Reflect-Free**: Avoids reflection for better performance and clearer code.
+- **Structured Errors**: Automatically generates detailed JSON error responses for validation failures.
+- **Extensible**: Supports custom parsers for any data type.
 
 ## Usage
 
-Here is a simple example of how to use the `binding` package to extract data from a request query, header, and path parameter.
+Here is a simple example of how to use the `binding` package within a `rakuda` application. The `binding.Join` function aggregates any validation errors, and `rakuda.Lift` handles the error by sending a structured JSON response.
 
 ```go
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/podhmo/rakuda"
 	"github.com/podhmo/rakuda/binding"
 )
+
+var responder = rakuda.NewResponder()
 
 // Define a parser for converting a string to an int.
 var parseInt = func(s string) (int, error) {
@@ -29,42 +38,43 @@ var parseString = func(s string) (string, error) {
 	return s, nil
 }
 
-type MyParams struct {
-	ID      int
-	Token   string
-	SortKey *string // Optional
+// GistParams represents the parameters for the gist action.
+type GistParams struct {
+	ID    int     `json:"id"`
+	Token string  `json:"-"` // Not included in JSON response
+	Sort  *string `json:"sort,omitempty"`
 }
 
-func myHandler(w http.ResponseWriter, r *http.Request) {
-	// Create a new binder for the current request, passing r.PathValue directly.
+// actionGist is a handler that demonstrates data binding.
+func actionGist(r *http.Request) (GistParams, error) {
+	var params GistParams
 	b := binding.New(r, r.PathValue)
 
-	var params MyParams
-	if err := errors.Join(
+	// Use binding.Join to aggregate all validation errors.
+	if err := binding.Join(
 		binding.One(b, &params.ID, binding.Path, "id", parseInt, binding.Required),
 		binding.One(b, &params.Token, binding.Header, "X-Auth-Token", parseString, binding.Required),
-		binding.OnePtr(b, &params.SortKey, binding.Query, "sort", parseString, binding.Optional),
+		binding.OnePtr(b, &params.Sort, binding.Query, "sort", parseString, binding.Optional),
 	); err != nil {
-		http.Error(w, fmt.Sprintf("Bad Request: %v", err), http.StatusBadRequest)
-		return
+		// Lift will automatically handle the *binding.ValidationErrors
+		// and the responder will format it into a detailed JSON response.
+		return params, err
 	}
 
-	fmt.Fprintf(w, "Successfully bound parameters:\n")
-	fmt.Fprintf(w, "ID: %d\n", params.ID)
-	fmt.Fprintf(w, "Token: %s\n", params.Token)
-	if params.SortKey != nil {
-		fmt.Fprintf(w, "Sort Key: %s\n", *params.SortKey)
-	} else {
-		fmt.Fprintf(w, "Sort Key: not provided\n")
-	}
+	return params, nil
 }
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/users/{id}", myHandler)
+	builder := rakuda.NewBuilder()
+	builder.Get("/gists/{id}", rakuda.Lift(responder, actionGist))
+
+	handler, err := builder.Build()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("Server starting on port 8080...")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -73,17 +83,40 @@ func main() {
 ### How to Run the Example
 
 1.  Save the code above as `main.go`.
-2.  Run `go mod init example` and `go mod tidy`. You may need to run `go get github.com/podhmo/rakuda/binding` as well.
+2.  Run `go mod init example` and `go mod tidy`.
 3.  Run `go run main.go`.
-4.  Send a request to the server:
+4.  Send requests to the server:
 
     ```sh
-    # Request with all parameters
-    curl -H "X-Auth-Token: mysecret" "http://localhost:8080/users/123?sort=name"
+    # 1. Request with all parameters (Success)
+    curl -i -H "X-Auth-Token: mysecret" "http://localhost:8080/gists/123?sort=name"
+    # HTTP/1.1 200 OK
+    # {"id":123,"sort":"name"}
 
-    # Request without the optional sort parameter
-    curl -H "X-Auth-Token: mysecret" "http://localhost:8080/users/456"
+    # 2. Request without the optional sort parameter (Success)
+    curl -i -H "X-Auth-Token: mysecret" "http://localhost:8080/gists/456"
+    # HTTP/1.1 200 OK
+    # {"id":456}
 
-    # Request missing a required parameter (will result in a 400 Bad Request)
-    curl "http://localhost:8080/users/789?sort=name"
+    # 3. Request with multiple validation errors (Failure)
+    # - Path parameter 'id' is not a valid integer.
+    # - Required 'X-Auth-Token' header is missing.
+    curl -i "http://localhost:8080/gists/invalid-id?sort=name"
+    # HTTP/1.1 400 Bad Request
+    # {
+    #   "errors": [
+    #     {
+    #       "source": "path",
+    #       "key": "id",
+    #       "value": "invalid-id",
+    #       "message": "strconv.Atoi: parsing \"invalid-id\": invalid syntax"
+    #     },
+    #     {
+    #       "source": "header",
+    #       "key": "X-Auth-Token",
+    #       "value": null,
+    #       "message": "required parameter is missing"
+    #     }
+    #   ]
+    # }
     ```

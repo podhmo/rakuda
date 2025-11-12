@@ -51,6 +51,13 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] Add tests to verify the logger is injected and works correctly.
     - [x] Refactor codebase to use `*slog.Logger` directly, removing custom interface.
     - [x] Centralize context helper functions in `context.go`.
+- **Structured Error Responses for Binding**: Implemented `binding.Join` to provide detailed, structured JSON error responses for validation failures. ([sketch/plan-binding-join.md](./sketch/plan-binding-join.md))
+    - [x] Define `binding.Error` and `binding.ValidationErrors` structs.
+    - [x] Implement the `binding.Join` function to collect and wrap errors.
+    - [x] Update `One`, `OnePtr`, `Slice`, and `SlicePtr` to return `*binding.Error`.
+    - [x] Modify `responder.Error` to handle `*binding.ValidationErrors` and produce a detailed JSON response.
+    - [x] Update `examples/simple-rest-api` to use `binding.Join`.
+    - [x] Add `binding/binding_join_test.go` with tests for the new structured error responses.
 
 ## To Be Implemented
 
