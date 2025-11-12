@@ -35,7 +35,7 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 				if code == 0 {
 					code = http.StatusFound
 				}
-				http.Redirect(w, r, redirectErr.URL, code)
+				responder.Redirect(w, r, redirectErr.URL, code)
 				return
 			}
 
