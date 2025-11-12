@@ -9,50 +9,6 @@ import (
 	"os"
 )
 
-// APIError is an error type that includes an HTTP status code.
-type APIError struct {
-	err    error
-	status int
-}
-
-// NewAPIError creates a new APIError.
-func NewAPIError(statusCode int, err error) error {
-	return &APIError{status: statusCode, err: err}
-}
-
-// NewAPIErrorf creates a new APIError with a formatted message.
-func NewAPIErrorf(statusCode int, format string, args ...any) *APIError {
-	return &APIError{status: statusCode, err: fmt.Errorf(format, args...)}
-}
-
-// Error implements the error interface.
-func (e *APIError) Error() string {
-	return e.err.Error()
-}
-
-// StatusCode returns the HTTP status code.
-func (e *APIError) StatusCode() int {
-	return e.status
-}
-
-// Unwrap supports errors.Is and errors.As.
-func (e *APIError) Unwrap() error {
-	return e.err
-}
-
-// RedirectError is a special error type used to signal an HTTP redirect.
-// When this error is returned from a handler wrapped by Lift, the Lift
-// function will perform the redirect and stop further processing.
-type RedirectError struct {
-	URL  string
-	Code int
-}
-
-// Error implements the error interface.
-func (e *RedirectError) Error() string {
-	return fmt.Sprintf("redirect to %s with code %d", e.URL, e.Code)
-}
-
 // Responder handles writing JSON responses.
 type Responder struct {
 	// defaultLogger is used when no logger is found in the request context.
@@ -167,8 +123,8 @@ func SSE[T any](responder *Responder, w http.ResponseWriter, req *http.Request, 
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		err := NewAPIErrorf(http.StatusInternalServerError, "Streaming unsupported")
-		http.Error(w, err.Error(), err.StatusCode())
+		err := fmt.Errorf("Streaming unsupported")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		logger.ErrorContext(ctx, "ResponseWriter does not support flushing", "error", err)
 		return
 	}
