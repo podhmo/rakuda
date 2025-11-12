@@ -63,6 +63,7 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ### Logging ([sketch/plan-error-log-with-pos.md](./sketch/plan-error-log-with-pos.md))
 - [x] **Add caller position to error logs**: Use the `runtime` package to capture the caller's stack frame for more precise error logging locations.
+- [x] **Conditional error logging**: Only log errors for 500+ status codes or when the log level is set to Debug.
 
 ### Core Router Implementation (TDD)
 

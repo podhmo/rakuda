@@ -36,36 +36,37 @@ func (r *Responder) Logger(ctx context.Context) *slog.Logger {
 }
 
 // Error sends a JSON error response.
-// For 5xx errors, it logs the internal error but sends a generic message to the client.
-// For 4xx errors, it sends the original error message.
+// It logs errors only under specific conditions:
+// - If the status code is >= 500.
+// - If the logger's level is Debug or lower.
+// For 5xx errors, it sends a generic message to the client.
 func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode int, err error) {
 	ctx := req.Context()
 	logger := r.Logger(ctx)
 
-	// Prepare log attributes
-	attrs := []slog.Attr{
-		slog.Int("status", statusCode),
-		slog.String("error", err.Error()),
-	}
+	if statusCode >= http.StatusInternalServerError || logger.Enabled(ctx, slog.LevelDebug) {
+		attrs := []slog.Attr{
+			slog.Int("status", statusCode),
+			slog.String("error", err.Error()),
+		}
 
-	// Check for APIError with program counter information
-	var apiErr *APIError
-	if errors.As(err, &apiErr) {
-		if pc := apiErr.PC(); pc != 0 {
-			fs := runtime.CallersFrames([]uintptr{pc})
-			f, _ := fs.Next()
-			if f.File != "" {
-				source := &slog.Source{
-					File:     f.File,
-					Line:     f.Line,
-					Function: f.Function,
+		var apiErr *APIError
+		if errors.As(err, &apiErr) {
+			if pc := apiErr.PC(); pc != 0 {
+				fs := runtime.CallersFrames([]uintptr{pc})
+				f, _ := fs.Next()
+				if f.File != "" {
+					source := &slog.Source{
+						File:     f.File,
+						Line:     f.Line,
+						Function: f.Function,
+					}
+					attrs = append(attrs, slog.Any("source", source))
 				}
-				attrs = append(attrs, slog.Any("source", source))
 			}
 		}
+		logger.LogAttrs(ctx, slog.LevelError, "API Error", attrs...)
 	}
-
-	logger.LogAttrs(ctx, slog.LevelError, "API Error", attrs...)
 
 	var vErrs *binding.ValidationErrors
 	if errors.As(err, &vErrs) {

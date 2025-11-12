@@ -39,10 +39,14 @@ type testHandler struct {
 	mu     sync.Mutex
 	record *slog.Record
 	attrs  []slog.Attr
+	level  slog.Leveler
 }
 
-func (h *testHandler) Enabled(context.Context, slog.Level) bool {
-	return true
+func (h *testHandler) Enabled(_ context.Context, level slog.Level) bool {
+	if h.level == nil {
+		return true
+	}
+	return level >= h.level.Level()
 }
 
 func (h *testHandler) Handle(_ context.Context, r slog.Record) error {
@@ -171,24 +175,77 @@ func TestResponder_SSE(t *testing.T) {
 	}
 }
 
+func TestResponder_Error_Logging(t *testing.T) {
+	t.Run("4xx error should not be logged by default", func(t *testing.T) {
+		handler := &testHandler{level: slog.LevelInfo}
+		logger := slog.New(handler)
+		responder := NewResponder()
+		responder.defaultLogger = logger
+
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		err := NewAPIError(http.StatusNotFound, errors.New("not found"))
+
+		responder.Error(w, req, http.StatusNotFound, err)
+
+		if handler.record != nil {
+			t.Errorf("expected no log record for 4xx error, but got one: %v", handler.record)
+		}
+	})
+
+	t.Run("4xx error should be logged at debug level", func(t *testing.T) {
+		handler := &testHandler{level: slog.LevelDebug}
+		logger := slog.New(handler)
+		responder := NewResponder()
+		responder.defaultLogger = logger
+
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		err := NewAPIError(http.StatusBadRequest, errors.New("bad request"))
+
+		responder.Error(w, req, http.StatusBadRequest, err)
+
+		if handler.record == nil {
+			t.Fatal("expected a log record for 4xx error at debug level, but got none")
+		}
+		if handler.record.Level != slog.LevelError {
+			t.Errorf("expected log level Error, got %v", handler.record.Level)
+		}
+	})
+
+	t.Run("5xx error should always be logged", func(t *testing.T) {
+		handler := &testHandler{level: slog.LevelInfo} // Non-debug level
+		logger := slog.New(handler)
+		responder := NewResponder()
+		responder.defaultLogger = logger
+
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		err := errors.New("internal server error")
+
+		responder.Error(w, req, http.StatusInternalServerError, err)
+
+		if handler.record == nil {
+			t.Fatal("expected a log record for 5xx error, but got none")
+		}
+	})
+}
+
 func TestResponder_Error_WithSource(t *testing.T) {
 	// Arrange
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rr := httptest.NewRecorder()
-
-	handler := &testHandler{}
+	handler := &testHandler{level: slog.LevelDebug} // Ensure logging is enabled
 	logger := slog.New(handler)
 	responder := NewResponder()
 	responder.defaultLogger = logger
-	ctx := NewContextWithLogger(req.Context(), logger)
-	req = req.WithContext(ctx)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
 
 	// Action: Create an error with position.
 	err := NewAPIError(http.StatusNotFound, errors.New("not found"))
-	captureLine := 253 // The line where NewAPIError is called.
 
 	// Act
-	responder.Error(rr, req, http.StatusNotFound, err)
+	responder.Error(w, req, http.StatusNotFound, err)
 
 	// Assert
 	if handler.record == nil {
@@ -205,16 +262,8 @@ func TestResponder_Error_WithSource(t *testing.T) {
 				return false
 			}
 
-			// Check if the file path ends with the expected file name.
-			expectedFileSuffix := "responder_test.go"
-			if !strings.HasSuffix(source.File, expectedFileSuffix) {
-				t.Errorf("expected log source file to end with %q, got %q", expectedFileSuffix, source.File)
-			}
-
-			// Note: This is brittle, but for this test, it's the simplest way.
-			// The line number might change if the file is edited.
-			if source.Line != captureLine {
-				// t.Errorf("expected log source line to be %d, got %d", captureLine, source.Line)
+			if !strings.HasSuffix(source.File, "responder_test.go") {
+				t.Errorf("expected log source file to be responder_test.go, got %s", source.File)
 			}
 			return false // stop iterating
 		}
