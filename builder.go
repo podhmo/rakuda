@@ -59,30 +59,30 @@ type Builder struct {
 	// to halt the build process. If it returns nil, the conflict is ignored and the
 	// duplicate route is not registered.
 	OnConflict func(b *Builder, routeKey string) error
-	cfg        *BuilderConfig
+	config     *BuilderConfig
 }
 
 // NewBuilder creates a new Builder instance with the given options.
 func NewBuilder(options ...func(*BuilderConfig)) *Builder {
 	// Initialize with default configuration
-	cfg := &BuilderConfig{
+	config := &BuilderConfig{
 		Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 	}
 
 	// Apply functional options
 	for _, option := range options {
-		option(cfg)
+		option(config)
 	}
 
 	b := &Builder{
-		node: &node{},
-		cfg:  cfg,
+		node:   &node{},
+		config: config,
 	}
 
 	// Set default OnConflict after options, so a custom logger is used if provided.
 	if b.OnConflict == nil {
 		b.OnConflict = func(b *Builder, routeKey string) error {
-			b.cfg.Logger.Warn("route conflict", "route", routeKey)
+			b.config.Logger.Warn("route conflict", "route", routeKey)
 			return nil
 		}
 	}
@@ -144,7 +144,7 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 		pattern: pattern,
 	}
 	b.node.children = append(b.node.children, childNode)
-	childBuilder := &Builder{node: childNode, cfg: b.cfg, OnConflict: b.OnConflict}
+	childBuilder := &Builder{node: childNode, config: b.config, OnConflict: b.OnConflict}
 	fn(childBuilder)
 }
 
@@ -152,7 +152,7 @@ func (b *Builder) Route(pattern string, fn func(b *Builder)) {
 func (b *Builder) Group(fn func(b *Builder)) {
 	childNode := &node{}
 	b.node.children = append(b.node.children, childNode)
-	childBuilder := &Builder{node: childNode, cfg: b.cfg, OnConflict: b.OnConflict}
+	childBuilder := &Builder{node: childNode, config: b.config, OnConflict: b.OnConflict}
 	fn(childBuilder)
 }
 
@@ -225,7 +225,7 @@ func (b *Builder) Build() (http.Handler, error) {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// If a logger is already in the context (e.g., from rakudatest), don't overwrite it.
 			if _, ok := LoggerFromContext(r.Context()); !ok {
-				logger := b.cfg.Logger.With(
+				logger := b.config.Logger.With(
 					slog.String("method", r.Method),
 					slog.String("path", r.URL.Path),
 				)
