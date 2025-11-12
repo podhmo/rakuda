@@ -44,6 +44,8 @@ func myHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+For most applications, a single `Responder` instance is sufficient. It is designed to be goroutine-safe and can be defined as a global variable. Future enhancements may include making the `Responder` more configurable (e.g., to pass options to an underlying JSON encoder like `encoding/json/v2`), but this will be done without requiring complex configuration files.
+
 ## 4. The `lift` Function
 
 ### 4.1. Motivation
