@@ -1,4 +1,3 @@
-//go:build rakudatest
 
 package rakuda_test
 
