@@ -95,7 +95,12 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, statusCode in
 	w.WriteHeader(statusCode)
 
 	if data != nil {
-		if err := json.NewEncoder(w).Encode(data); err != nil {
+		enc := json.NewEncoder(w)
+		// Easter egg: if the querystring includes "pretty", indent the JSON output.
+		if _, ok := req.URL.Query()["pretty"]; ok {
+			enc.SetIndent("", "  ")
+		}
+		if err := enc.Encode(data); err != nil {
 			logger := r.Logger(ctx)
 			logger.ErrorContext(ctx, "failed to encode json response", "error", err)
 		}

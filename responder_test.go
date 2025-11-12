@@ -290,6 +290,7 @@ func TestResponder_JSON(t *testing.T) {
 		wantBody          string
 		wantErrLog        bool
 		wantDefaultLogger bool
+		pretty            bool
 	}{
 		{
 			name:             "success - 200 OK",
@@ -298,6 +299,15 @@ func TestResponder_JSON(t *testing.T) {
 			statusCode:       0, // default
 			wantStatusCode:   http.StatusOK,
 			wantBody:         `{"name":"Gopher","age":10}` + "\n",
+		},
+		{
+			name:             "success - pretty",
+			data:             responseData{Name: "Gopher", Age: 10},
+			useContextLogger: true,
+			statusCode:       0, // default
+			wantStatusCode:   http.StatusOK,
+			pretty:           true,
+			wantBody:         "{\n  \"name\": \"Gopher\",\n  \"age\": 10\n}\n",
 		},
 		{
 			name:             "success - 201 Created",
@@ -339,7 +349,11 @@ func TestResponder_JSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			target := "/"
+			if tt.pretty {
+				target = "/?pretty"
+			}
+			req := httptest.NewRequest(http.MethodGet, target, nil)
 			rr := httptest.NewRecorder()
 
 			contextHandler := &testHandler{}
