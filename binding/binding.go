@@ -3,12 +3,89 @@
 package binding
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/textproto"
 	"strings"
 )
+
+// Error represents a single validation error, providing structured details.
+type Error struct {
+	Source Source `json:"source"` // e.g., "query", "header"
+	Key    string `json:"key"`    // The parameter name (e.g., "id", "sort")
+	Value  any    `json:"value"`  // The invalid value that was provided
+	Err    error  `json:"-"`      // The underlying error (not exposed in JSON)
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("source=%s, key=%s, value=%v, err=%v", e.Source, e.Key, e.Value, e.Err)
+}
+
+func (e *Error) Unwrap() error {
+	return e.Err
+}
+
+// MarshalJSON customizes the JSON output to include a user-friendly message.
+func (e *Error) MarshalJSON() ([]byte, error) {
+	type Alias Error
+	return json.Marshal(&struct {
+		Message string `json:"message"`
+		*Alias
+	}{
+		Message: e.Err.Error(),
+		Alias:   (*Alias)(e),
+	})
+}
+
+// ValidationErrors collects multiple binding errors.
+type ValidationErrors struct {
+	Errors []*Error `json:"errors"`
+}
+
+func (e *ValidationErrors) Error() string {
+	var b strings.Builder
+	b.WriteString("validation failed: ")
+	for i, err := range e.Errors {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(err.Error())
+	}
+	return b.String()
+}
+
+// StatusCode returns 400 Bad Request, allowing it to work with the lift handler.
+func (e *ValidationErrors) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+// Join collects binding errors into a single ValidationErrors instance.
+// It filters out nil errors. If no errors are found, it returns nil.
+func Join(errs ...error) error {
+	var validationErrs []*Error
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		var vErrs *ValidationErrors
+		var bErr *Error
+		if errors.As(err, &vErrs) {
+			validationErrs = append(validationErrs, vErrs.Errors...)
+		} else if errors.As(err, &bErr) {
+			validationErrs = append(validationErrs, bErr)
+		} else {
+			// It's some other error type, wrap it for consistency
+			validationErrs = append(validationErrs, &Error{Err: err})
+		}
+	}
+
+	if len(validationErrs) == 0 {
+		return nil
+	}
+	return &ValidationErrors{Errors: validationErrs}
+}
 
 // Source represents the source of a value in an HTTP request.
 type Source string
@@ -143,14 +220,23 @@ func One[T any](b *Binding, dest *T, source Source, key string, parse Parser[T],
 	valStr, ok := b.Lookup(source, key)
 	if !ok {
 		if req == Required {
-			return fmt.Errorf("binding: %s key '%s' is required", source, key)
+			return &Error{
+				Source: source,
+				Key:    key,
+				Err:    errors.New("required parameter is missing"),
+			}
 		}
 		return nil // Optional and not present is a success.
 	}
 
 	val, err := parse(valStr)
 	if err != nil {
-		return fmt.Errorf("binding: failed to parse %s key '%s' with value %q: %w", source, key, valStr, err)
+		return &Error{
+			Source: source,
+			Key:    key,
+			Value:  valStr,
+			Err:    err,
+		}
 	}
 
 	*dest = val
@@ -162,7 +248,11 @@ func OnePtr[T any](b *Binding, dest **T, source Source, key string, parse Parser
 	valStr, ok := b.Lookup(source, key)
 	if !ok {
 		if req == Required {
-			return fmt.Errorf("binding: %s key '%s' is required", source, key)
+			return &Error{
+				Source: source,
+				Key:    key,
+				Err:    errors.New("required parameter is missing"),
+			}
 		}
 		*dest = nil // Optional and not present: set field to nil.
 		return nil
@@ -170,7 +260,12 @@ func OnePtr[T any](b *Binding, dest **T, source Source, key string, parse Parser
 
 	val, err := parse(valStr)
 	if err != nil {
-		return fmt.Errorf("binding: failed to parse %s key '%s' with value %q: %w", source, key, valStr, err)
+		return &Error{
+			Source: source,
+			Key:    key,
+			Value:  valStr,
+			Err:    err,
+		}
 	}
 
 	*dest = &val
@@ -182,7 +277,11 @@ func Slice[T any](b *Binding, dest *[]T, source Source, key string, parse Parser
 	rawValues, ok := b.valuesFromSource(source, key)
 	if !ok {
 		if req == Required {
-			return fmt.Errorf("binding: %s key '%s' is required", source, key)
+			return &Error{
+				Source: source,
+				Key:    key,
+				Err:    errors.New("required parameter is missing"),
+			}
 		}
 		*dest = nil
 		return nil
@@ -193,11 +292,16 @@ func Slice[T any](b *Binding, dest *[]T, source Source, key string, parse Parser
 
 	for _, valStr := range rawValues {
 		itemsStr := strings.Split(valStr, ",")
-		for i, itemStr := range itemsStr {
+		for _, itemStr := range itemsStr {
 			trimmed := strings.TrimSpace(itemStr)
 			val, err := parse(trimmed)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("binding: failed to parse item #%d from value %q for %s key '%s': %w", i, itemStr, source, key, err))
+				errs = append(errs, &Error{
+					Source: source,
+					Key:    key,
+					Value:  itemStr,
+					Err:    err,
+				})
 				continue
 			}
 			slice = append(slice, val)
@@ -206,7 +310,7 @@ func Slice[T any](b *Binding, dest *[]T, source Source, key string, parse Parser
 
 	if len(errs) > 0 {
 		*dest = slice
-		return errors.Join(errs...)
+		return Join(errs...)
 	}
 
 	*dest = slice
@@ -218,7 +322,11 @@ func SlicePtr[T any](b *Binding, dest *[]*T, source Source, key string, parse Pa
 	rawValues, ok := b.valuesFromSource(source, key)
 	if !ok {
 		if req == Required {
-			return fmt.Errorf("binding: %s key '%s' is required", source, key)
+			return &Error{
+				Source: source,
+				Key:    key,
+				Err:    errors.New("required parameter is missing"),
+			}
 		}
 		*dest = nil
 		return nil
@@ -229,11 +337,16 @@ func SlicePtr[T any](b *Binding, dest *[]*T, source Source, key string, parse Pa
 
 	for _, valStr := range rawValues {
 		itemsStr := strings.Split(valStr, ",")
-		for i, itemStr := range itemsStr {
+		for _, itemStr := range itemsStr {
 			trimmed := strings.TrimSpace(itemStr)
 			val, err := parse(trimmed)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("binding: failed to parse pointer item #%d from value %q for %s key '%s': %w", i, itemStr, source, key, err))
+				errs = append(errs, &Error{
+					Source: source,
+					Key:    key,
+					Value:  itemStr,
+					Err:    err,
+				})
 				continue
 			}
 			slice = append(slice, &val)
@@ -242,7 +355,7 @@ func SlicePtr[T any](b *Binding, dest *[]*T, source Source, key string, parse Pa
 
 	if len(errs) > 0 {
 		*dest = slice
-		return errors.Join(errs...)
+		return Join(errs...)
 	}
 
 	*dest = slice
