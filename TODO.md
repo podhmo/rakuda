@@ -58,25 +58,24 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] Modify `responder.Error` to handle `*binding.ValidationErrors` and produce a detailed JSON response.
     - [x] Update `examples/simple-rest-api` to use `binding.Join`.
     - [x] Add `binding/binding_join_test.go` with tests for the new structured error responses.
+- **Centralized Logging**: Implemented a centralized logging strategy. ([sketch/plan-sharing-logger.md](./sketch/plan-sharing-logger.md))
+    - [x] **Implement Functional Options for Builder**:
+        - [x] Create `BuilderConfig` struct and `BuilderOption` type.
+        - [x] Implement `WithLogger(l *slog.Logger) BuilderOption`.
+        - [x] Update `NewBuilder(...)` to accept `...BuilderOption`.
+    - [x] **Implement Logger Injection Middleware**:
+        - [x] In `Builder.Build()`, create a middleware that injects a logger into the request context.
+        - [x] The middleware should add contextual attributes (`method`, `path`) to the logger.
+        - [x] The middleware must check for a pre-existing logger (from `rakudatest`) and not overwrite it.
+    - [x] **Refactor Components**:
+        - [x] Remove the `Logger()` method from the `Responder` struct.
+        - [x] Update `Responder` methods (`Error`, `JSON`, etc.) to get the logger directly from the context.
+        - [x] Update `rakudamiddleware.Recovery` to get the logger from the context.
+    - [x] **Implement Fallback with Warning**:
+        - [x] Modify `LoggerFromContext` to fall back to `slog.Default()`.
+        - [x] Use `sync.Once` to log a warning message the first time the fallback occurs.
 
 ## To Be Implemented
-
-### Centralized Logging ([sketch/plan-sharing-logger.md](./sketch/plan-sharing-logger.md))
-- [ ] **Implement Functional Options for Builder**:
-    - [ ] Create `BuilderConfig` struct and `BuilderOption` type.
-    - [ ] Implement `WithLogger(l *slog.Logger) BuilderOption`.
-    - [ ] Update `NewBuilder(...)` to accept `...BuilderOption`.
-- [ ] **Implement Logger Injection Middleware**:
-    - [ ] In `Builder.Build()`, create a middleware that injects a logger into the request context.
-    - [ ] The middleware should add contextual attributes (`method`, `path`) to the logger.
-    - [ ] The middleware must check for a pre-existing logger (from `rakudatest`) and not overwrite it.
-- [ ] **Refactor Components**:
-    - [ ] Remove the `Logger()` method from the `Responder` struct.
-    - [ ] Update `Responder` methods (`Error`, `JSON`, etc.) to get the logger directly from the context.
-    - [ ] Update `rakudamiddleware.Recovery` to get the logger from the context.
-- [ ] **Implement Fallback with Warning**:
-    - [ ] Modify `LoggerFromContext` to fall back to `slog.Default()`.
-    - [ ] Use `sync.Once` to log a warning message the first time the fallback occurs.
 
 ### Core Router Implementation (TDD)
 

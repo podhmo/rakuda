@@ -1,38 +1,22 @@
 package rakuda
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"runtime"
 
 	"github.com/podhmo/rakuda/binding"
 )
 
 // Responder handles writing JSON responses.
-type Responder struct {
-	// defaultLogger is used when no logger is found in the request context.
-	// If nil, a default slog.Logger is used.
-	defaultLogger *slog.Logger
-}
+type Responder struct{}
 
-// NewResponder creates a new Responder with a default slog logger.
+// NewResponder creates a new Responder.
 func NewResponder() *Responder {
-	return &Responder{
-		defaultLogger: slog.New(slog.NewJSONHandler(os.Stderr, nil)),
-	}
-}
-
-// Logger returns the logger from the context if it exists, otherwise it returns the default logger.
-func (r *Responder) Logger(ctx context.Context) *slog.Logger {
-	if logger, ok := LoggerFromContext(ctx); ok {
-		return logger
-	}
-	return r.defaultLogger
+	return &Responder{}
 }
 
 // Error sends a JSON error response.
@@ -42,7 +26,7 @@ func (r *Responder) Logger(ctx context.Context) *slog.Logger {
 // For 5xx errors, it sends a generic message to the client.
 func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode int, err error) {
 	ctx := req.Context()
-	logger := r.Logger(ctx)
+	logger := LoggerFromContextOrDefault(ctx)
 
 	if statusCode >= http.StatusInternalServerError || logger.Enabled(ctx, slog.LevelDebug) {
 		attrs := []slog.Attr{
@@ -101,7 +85,7 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, statusCode in
 			enc.SetIndent("", "  ")
 		}
 		if err := enc.Encode(data); err != nil {
-			logger := r.Logger(ctx)
+			logger := LoggerFromContextOrDefault(ctx)
 			logger.ErrorContext(ctx, "failed to encode json response", "error", err)
 		}
 	}
@@ -124,7 +108,7 @@ func (r *Responder) HTML(w http.ResponseWriter, req *http.Request, code int, htm
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
 	if _, err := w.Write(html); err != nil {
-		logger := r.Logger(ctx)
+		logger := LoggerFromContextOrDefault(ctx)
 		logger.ErrorContext(ctx, "failed to write html response", "error", err)
 	}
 }
@@ -159,7 +143,7 @@ func (e Event[T]) eventData() any {
 // or *Event[U], it will be treated as a named event.
 func SSE[T any](responder *Responder, w http.ResponseWriter, req *http.Request, ch <-chan T) {
 	ctx := req.Context()
-	logger := responder.Logger(ctx)
+	logger := LoggerFromContextOrDefault(ctx)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
