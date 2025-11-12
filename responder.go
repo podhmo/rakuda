@@ -65,7 +65,7 @@ func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode i
 				}
 			}
 		}
-		logger.LogAttrs(ctx, slog.LevelError, "API Error", attrs...)
+		logger.LogAttrs(ctx, slog.LevelError, err.Error(), attrs...)
 	}
 
 	var vErrs *binding.ValidationErrors
