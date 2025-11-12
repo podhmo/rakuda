@@ -28,6 +28,7 @@ SSEが機能するか試せてない
 Markdown出力が欲しい
 - それっぽいhtmlが手に入るもの
 - .mdをつけるとダウンロードできる
+- https://github.com/yusukebe/gh-markdown-preview
 
 まだ楽（raku）になってないかも?
 - init的なscaffoldが欲しい？（？）
