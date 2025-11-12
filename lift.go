@@ -5,22 +5,34 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"runtime"
 )
 
 // APIError is an error type that includes an HTTP status code.
 type APIError struct {
 	err    error
 	status int
+	pc     uintptr // program counter
 }
 
-// NewAPIError creates a new APIError.
-func NewAPIError(statusCode int, err error) error {
-	return &APIError{status: statusCode, err: err}
+// NewAPIError creates a new APIError, capturing the caller's position.
+// The default depth is 2, which points to the caller of NewAPIError.
+func NewAPIError(statusCode int, err error) *APIError {
+	return NewAPIErrorWithDepth(statusCode, err, 2)
 }
 
 // NewAPIErrorf creates a new APIError with a formatted message.
+// The default depth is 2, which points to the caller of NewAPIErrorf.
 func NewAPIErrorf(statusCode int, format string, args ...any) *APIError {
-	return &APIError{status: statusCode, err: fmt.Errorf(format, args...)}
+	return NewAPIErrorWithDepth(statusCode, fmt.Errorf(format, args...), 2)
+}
+
+// NewAPIErrorWithDepth creates a new APIError with a specific call stack depth.
+func NewAPIErrorWithDepth(statusCode int, err error, depth int) *APIError {
+	pc, _, _, _ := runtime.Caller(depth)
+	return &APIError{
+		status: statusCode, err: err, pc: pc,
+	}
 }
 
 // Error implements the error interface.
@@ -31,6 +43,11 @@ func (e *APIError) Error() string {
 // StatusCode returns the HTTP status code.
 func (e *APIError) StatusCode() int {
 	return e.status
+}
+
+// PC returns the program counter where the error was created.
+func (e *APIError) PC() uintptr {
+	return e.pc
 }
 
 // Unwrap supports errors.Is and errors.As.

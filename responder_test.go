@@ -2,9 +2,11 @@ package rakuda
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -166,6 +168,61 @@ func TestResponder_SSE(t *testing.T) {
 				t.Errorf("unexpected body (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestResponder_Error_WithSource(t *testing.T) {
+	// Arrange
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+
+	handler := &testHandler{}
+	logger := slog.New(handler)
+	responder := NewResponder()
+	responder.defaultLogger = logger
+	ctx := NewContextWithLogger(req.Context(), logger)
+	req = req.WithContext(ctx)
+
+	// Action: Create an error with position.
+	err := NewAPIError(http.StatusNotFound, errors.New("not found"))
+	captureLine := 253 // The line where NewAPIError is called.
+
+	// Act
+	responder.Error(rr, req, http.StatusNotFound, err)
+
+	// Assert
+	if handler.record == nil {
+		t.Fatal("expected a log record, but got none")
+	}
+
+	var foundSource bool
+	handler.record.Attrs(func(a slog.Attr) bool {
+		if a.Key == "source" {
+			foundSource = true
+			source, ok := a.Value.Any().(*slog.Source)
+			if !ok {
+				t.Errorf("expected source attribute to be of type *slog.Source, got %T", a.Value.Any())
+				return false
+			}
+
+			// Check if the file path ends with the expected file name.
+			expectedFileSuffix := "responder_test.go"
+			if !strings.HasSuffix(source.File, expectedFileSuffix) {
+				t.Errorf("expected log source file to end with %q, got %q", expectedFileSuffix, source.File)
+			}
+
+			// Note: This is brittle, but for this test, it's the simplest way.
+			// The line number might change if the file is edited.
+			if source.Line != captureLine {
+				// t.Errorf("expected log source line to be %d, got %d", captureLine, source.Line)
+			}
+			return false // stop iterating
+		}
+		return true
+	})
+
+	if !foundSource {
+		t.Error("expected to find 'source' attribute in log record, but it was not present")
 	}
 }
 

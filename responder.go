@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"runtime"
 
 	"github.com/podhmo/rakuda/binding"
 )
@@ -40,7 +41,31 @@ func (r *Responder) Logger(ctx context.Context) *slog.Logger {
 func (r *Responder) Error(w http.ResponseWriter, req *http.Request, statusCode int, err error) {
 	ctx := req.Context()
 	logger := r.Logger(ctx)
-	logger.ErrorContext(ctx, "API Error", "status", statusCode, "error", err)
+
+	// Prepare log attributes
+	attrs := []slog.Attr{
+		slog.Int("status", statusCode),
+		slog.String("error", err.Error()),
+	}
+
+	// Check for APIError with program counter information
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		if pc := apiErr.PC(); pc != 0 {
+			fs := runtime.CallersFrames([]uintptr{pc})
+			f, _ := fs.Next()
+			if f.File != "" {
+				source := &slog.Source{
+					File:     f.File,
+					Line:     f.Line,
+					Function: f.Function,
+				}
+				attrs = append(attrs, slog.Any("source", source))
+			}
+		}
+	}
+
+	logger.LogAttrs(ctx, slog.LevelError, "API Error", attrs...)
 
 	var vErrs *binding.ValidationErrors
 	if errors.As(err, &vErrs) {

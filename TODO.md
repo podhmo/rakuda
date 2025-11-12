@@ -61,6 +61,9 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ## To Be Implemented
 
+### Logging ([sketch/plan-error-log-with-pos.md](./sketch/plan-error-log-with-pos.md))
+- [x] **Add caller position to error logs**: Use the `runtime` package to capture the caller's stack frame for more precise error logging locations.
+
 ### Core Router Implementation (TDD)
 
 The key design principle is the **two-stage separation**: configuration stage (Builder) and execution stage (http.Handler). Routes and middlewares can be defined in any order without affecting behavior.
