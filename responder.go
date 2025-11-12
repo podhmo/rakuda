@@ -53,55 +53,11 @@ func (e *RedirectError) Error() string {
 	return fmt.Sprintf("redirect to %s with code %d", e.URL, e.Code)
 }
 
-// Logger defines the minimal interface for a structured error logger.
-// It is compatible with the slog.Logger and can be easily implemented
-// by wrappers around other loggers or for testing purposes.
-type Logger interface {
-	ErrorContext(ctx context.Context, msg string, args ...any)
-}
-
-// contextKey is a private type to prevent collisions with other packages' context keys.
-type contextKey string
-
-const (
-	loggerKey     contextKey = "logger"
-	statusCodeKey contextKey = "status-code"
-)
-
-// WithLogger returns a new request with the provided Logger stored in its context.
-// This should typically be called once by a middleware at the top level.
-func WithLogger(r *http.Request, logger Logger) *http.Request {
-	ctx := context.WithValue(r.Context(), loggerKey, logger)
-	return r.WithContext(ctx)
-}
-
-// GetLogger retrieves the Logger from the context.
-func GetLogger(ctx context.Context) (Logger, bool) {
-	logger, ok := ctx.Value(loggerKey).(Logger)
-	return logger, ok && logger != nil
-}
-
-// WithStatusCode returns a new request with the provided HTTP status code
-// stored in its context. This can be called by any middleware or handler
-// to set or override the status for the final response.
-func WithStatusCode(r *http.Request, status int) *http.Request {
-	ctx := context.WithValue(r.Context(), statusCodeKey, status)
-	return r.WithContext(ctx)
-}
-
-// getStatusCode retrieves the HTTP status code from the context, or http.StatusOK if not found.
-func getStatusCode(ctx context.Context) int {
-	if status, ok := ctx.Value(statusCodeKey).(int); ok {
-		return status
-	}
-	return http.StatusOK
-}
-
 // Responder handles writing JSON responses.
 type Responder struct {
 	// defaultLogger is used when no logger is found in the request context.
 	// If nil, a default slog.Logger is used.
-	defaultLogger Logger
+	defaultLogger *slog.Logger
 }
 
 // NewResponder creates a new Responder with a default slog logger.
@@ -112,8 +68,8 @@ func NewResponder() *Responder {
 }
 
 // Logger returns the logger from the context if it exists, otherwise it returns the default logger.
-func (r *Responder) Logger(ctx context.Context) Logger {
-	if logger, ok := GetLogger(ctx); ok {
+func (r *Responder) Logger(ctx context.Context) *slog.Logger {
+	if logger, ok := LoggerFromContext(ctx); ok {
 		return logger
 	}
 	return r.defaultLogger
@@ -127,7 +83,7 @@ func (r *Responder) JSON(w http.ResponseWriter, req *http.Request, data any) {
 		return // Client disconnected
 	}
 
-	status := getStatusCode(ctx)
+	status := StatusCodeFromContext(ctx)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 
