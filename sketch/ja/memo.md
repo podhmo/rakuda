@@ -25,6 +25,10 @@ Loggerの管理
 SSEが機能するか試せてない
 - httplogでResponseWriterをwrapしてしまうとFlusherを取得しできないのでは？
 
+Markdown出力が欲しい
+- それっぽいhtmlが手に入るもの
+- .mdをつけるとダウンロードできる
+
 まだ楽（raku）になってないかも?
 - init的なscaffoldが欲しい？（？）
 - encoding/json/v2を利用するようにしたい
