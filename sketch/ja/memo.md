@@ -14,10 +14,18 @@ Loggerの管理
     - RespoderのErrorを陽に使えば指定可能。liftの時が無理。
   - stack traceが欲しいのでは無いか？
 
+エラーレスポンス
+-  rfc-7876直書きは辛い
+    - https://github.com/podhmo/rakuda/pull/15#issue-3603403730
+- 
+真面目に作ったapi errorを都度ハンドリングしたくない
+  - https://leapcell.io/blog/building-a-robust-error-handling-system-for-go-apis
+  - https://techblog.hacomono.jp/entry/2025/08/19/110000
+
 SSEが機能するか試せてない
 - httplogでResponseWriterをwrapしてしまうとFlusherを取得しできないのでは？
 
-まだ楽になってないかも?
+まだ楽（raku）になってないかも?
 - init的なscaffoldが欲しい？（？）
 - encoding/json/v2を利用するようにしたい
 - 機能の拡張はnet/httpだけの知識で済ませるようにしたい
