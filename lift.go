@@ -19,6 +19,8 @@ import (
 //     code is used for the response.
 //   - Otherwise, a 500 Internal Server Error is returned.
 //   - The error message is returned as a JSON object: {"error": "message"}.
+//   - For 5xx errors, the original error is logged, but a generic "Internal Server Error" message
+//     is returned to the client to avoid exposing internal details.
 //   - If both the returned value and the error are nil, it follows specific rules:
 //   - For `nil` maps, it returns `200 OK` with an empty JSON object `{}`.
 //   - For `nil` slices, it returns `200 OK` with an empty JSON array `[]`.
@@ -33,26 +35,16 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 				if code == 0 {
 					code = http.StatusFound
 				}
-				http.Redirect(w, r, redirectErr.URL, code)
+				responder.Redirect(w, r, redirectErr.URL, code)
 				return
 			}
 
 			var sc interface{ StatusCode() int }
 			if errors.As(err, &sc) {
-				ctx := NewContextWithStatusCode(r.Context(), sc.StatusCode())
-				r = r.WithContext(ctx)
-				responder.JSON(w, r, map[string]string{"error": err.Error()})
+				responder.Error(w, r, sc.StatusCode(), err)
 				return
 			}
-
-			// For internal errors, log the actual error but return a generic message.
-			ctx := r.Context()
-			logger := responder.Logger(ctx)
-			logger.ErrorContext(ctx, "internal server error from lifted handler", "error", err)
-
-			ctx = NewContextWithStatusCode(ctx, http.StatusInternalServerError)
-			r = r.WithContext(ctx)
-			responder.JSON(w, r, map[string]string{"error": "Internal Server Error"})
+			responder.Error(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -83,11 +75,11 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 			switch typ.Kind() {
 			case reflect.Map:
 				// For a nil map, return an empty JSON object.
-				responder.JSON(w, r, reflect.MakeMap(typ).Interface())
+				responder.JSON(w, r, http.StatusOK, reflect.MakeMap(typ).Interface())
 				return
 			case reflect.Slice:
 				// For a nil slice, return an empty JSON array.
-				responder.JSON(w, r, reflect.MakeSlice(typ, 0, 0).Interface())
+				responder.JSON(w, r, http.StatusOK, reflect.MakeSlice(typ, 0, 0).Interface())
 				return
 			default:
 				// For other nil types (pointers, interfaces, etc.), return No Content.
@@ -96,6 +88,11 @@ func Lift[O any](responder *Responder, action func(*http.Request) (O, error)) ht
 			}
 		}
 
-		responder.JSON(w, r, data)
+		// Check if the returned data itself specifies a status code.
+		statusCode := http.StatusOK
+		if sc, ok := any(data).(interface{ StatusCode() int }); ok {
+			statusCode = sc.StatusCode()
+		}
+		responder.JSON(w, r, statusCode, data)
 	})
 }

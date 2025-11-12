@@ -68,7 +68,7 @@ func newRouter() *rakuda.Builder {
 		// Public routes (no additional middleware)
 		api.Route("/public", func(public *rakuda.Builder) {
 			public.Get("/info", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				responder.JSON(w, r, map[string]any{
+				responder.JSON(w, r, http.StatusOK, map[string]any{
 					"name":        "Rakuda SPA API",
 					"version":     "1.0.0",
 					"description": "Example SPA with go:embed and CORS support",
@@ -83,7 +83,7 @@ func newRouter() *rakuda.Builder {
 
 			users.Get("/current", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				user := r.Context().Value("user")
-				responder.JSON(w, r, map[string]any{
+				responder.JSON(w, r, http.StatusOK, map[string]any{
 					"user":    user,
 					"message": "Successfully retrieved current user",
 				})
@@ -94,15 +94,13 @@ func newRouter() *rakuda.Builder {
 				b := binding.New(r, r.PathValue)
 				var params UserIDParams
 				if err := binding.One(b, &params.ID, binding.Path, "id", parseString, binding.Required); err != nil {
-					ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusBadRequest)
-					r = r.WithContext(ctx)
-					responder.JSON(w, r, map[string]string{
+					responder.JSON(w, r, http.StatusBadRequest, map[string]string{
 						"error": err.Error(),
 					})
 					return
 				}
 
-				responder.JSON(w, r, map[string]any{
+				responder.JSON(w, r, http.StatusOK, map[string]any{
 					"id":       params.ID,
 					"name":     fmt.Sprintf("User %s", params.ID),
 					"email":    fmt.Sprintf("user%s@example.com", params.ID),
@@ -112,9 +110,7 @@ func newRouter() *rakuda.Builder {
 			}))
 
 			users.Post("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusCreated)
-				r = r.WithContext(ctx)
-				responder.JSON(w, r, map[string]any{
+				responder.JSON(w, r, http.StatusCreated, map[string]any{
 					"message": "User created successfully",
 					"id":      "new-user-id",
 				})
@@ -127,7 +123,7 @@ func newRouter() *rakuda.Builder {
 			admin.Use(adminOnlyMiddleware())
 
 			admin.Get("/stats", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				responder.JSON(w, r, map[string]any{
+				responder.JSON(w, r, http.StatusOK, map[string]any{
 					"total_users":    1337,
 					"active_users":   892,
 					"total_requests": 42000,
@@ -205,12 +201,10 @@ func authMiddleware() rakuda.Middleware {
 func adminOnlyMiddleware() rakuda.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			responder := rakuda.NewResponder()
 			user := r.Context().Value("user")
 			if user == nil {
-				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusUnauthorized)
-				r = r.WithContext(ctx)
-				responder := rakuda.NewResponder()
-				responder.JSON(w, r, map[string]string{
+				responder.JSON(w, r, http.StatusUnauthorized, map[string]string{
 					"error": "Authentication required",
 				})
 				return
@@ -219,10 +213,7 @@ func adminOnlyMiddleware() rakuda.Middleware {
 			// Simulate admin check (in real app, check user role from database)
 			userMap, ok := user.(map[string]any)
 			if !ok {
-				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusForbidden)
-				r = r.WithContext(ctx)
-				responder := rakuda.NewResponder()
-				responder.JSON(w, r, map[string]string{
+				responder.JSON(w, r, http.StatusForbidden, map[string]string{
 					"error": "Insufficient permissions",
 				})
 				return
@@ -231,10 +222,7 @@ func adminOnlyMiddleware() rakuda.Middleware {
 			// For demo: tokens containing "admin" are considered admin tokens
 			token, _ := userMap["token"].(string)
 			if token == "" || len(token) < 5 || token[:5] != "admin" {
-				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusForbidden)
-				r = r.WithContext(ctx)
-				responder := rakuda.NewResponder()
-				responder.JSON(w, r, map[string]string{
+				responder.JSON(w, r, http.StatusForbidden, map[string]string{
 					"error": "Admin access required",
 				})
 				return

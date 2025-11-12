@@ -248,13 +248,12 @@ func TestResponder_JSON(t *testing.T) {
 				ctx := NewContextWithLogger(req.Context(), contextLogger)
 				req = req.WithContext(ctx)
 			}
-			if tt.statusCode != 0 {
-				ctx := NewContextWithStatusCode(req.Context(), tt.statusCode)
-				req = req.WithContext(ctx)
-			}
-
 			// Act
-			responder.JSON(rr, req, tt.data)
+			statusCode := tt.statusCode
+			if statusCode == 0 {
+				statusCode = http.StatusOK
+			}
+			responder.JSON(rr, req, statusCode, tt.data)
 
 			// Assert Status Code
 			if rr.Code != tt.wantStatusCode {

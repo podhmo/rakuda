@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"net/http"
 )
 
 // contextKey is the type for keys stored in context.
@@ -12,8 +11,7 @@ type contextKey string
 
 // Keys for context values.
 const (
-	loggerKey     = contextKey("logger")
-	statusCodeKey = contextKey("status-code")
+	loggerKey = contextKey("logger")
 )
 
 // NewContextWithLogger returns a new context with the provided Logger.
@@ -34,15 +32,3 @@ func LoggerFromContext(ctx context.Context) (*slog.Logger, bool) {
 	return l, true
 }
 
-// NewContextWithStatusCode returns a new context with the provided HTTP status code.
-func NewContextWithStatusCode(ctx context.Context, status int) context.Context {
-	return context.WithValue(ctx, statusCodeKey, status)
-}
-
-// StatusCodeFromContext retrieves the HTTP status code from the context, or http.StatusOK if not found.
-func StatusCodeFromContext(ctx context.Context) int {
-	if status, ok := ctx.Value(statusCodeKey).(int); ok {
-		return status
-	}
-	return http.StatusOK
-}

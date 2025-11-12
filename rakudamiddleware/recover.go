@@ -20,10 +20,9 @@ func Recovery(next http.Handler) http.Handler {
 				}
 				logger.ErrorContext(r.Context(), "panic recovered", "error", err, "stack", string(debug.Stack()))
 
-				ctx := rakuda.NewContextWithStatusCode(r.Context(), http.StatusInternalServerError)
-				r = r.WithContext(ctx)
+				// Use the new Error method for a standardized response
 				responder := rakuda.NewResponder()
-				responder.JSON(w, r, map[string]string{"error": http.StatusText(http.StatusInternalServerError)})
+				responder.Error(w, r, http.StatusInternalServerError, http.ErrAbortHandler) // http.ErrAbortHandler is just a sentinel error
 			}
 		}()
 		next.ServeHTTP(w, r)
