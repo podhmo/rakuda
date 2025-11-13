@@ -1,3 +1,6 @@
+> [!NOTE]
+> This feature has been implemented.
+
 # Plan: SSE (Server-Sent Events) Responder
 
 This document outlines the plan to add Server-Sent Events (SSE) support to the `rakuda` router.

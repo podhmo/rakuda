@@ -74,62 +74,13 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] **Implement Fallback with Warning**:
         - [x] Modify `LoggerFromContext` to fall back to `slog.Default()`.
         - [x] Use `sync.Once` to log a warning message the first time the fallback occurs.
+- **SSE Responder**: Added a responder for streaming data using Server-Sent Events (SSE). It supports `text/event-stream` responses and includes helpers for sending named events. See ([sketch/plan-sse-responder.md](./sketch/plan-sse-responder.md)) for details.
+- **CLI**: Added a `proutes` utility to display registered handlers via a command-line flag in the example application.
+- **Core Router Implementation**: Implemented a type-safe router using a builder pattern. It supports features like middleware, route grouping, custom "Not Found" handlers, and configurable route conflict handling.
 
 ## To Be Implemented
-
-### Core Router Implementation (TDD)
-
-The key design principle is the **two-stage separation**: configuration stage (Builder) and execution stage (http.Handler). Routes and middlewares can be defined in any order without affecting behavior.
-
-- [x] **Builder Type with Tests**: Implement the `rakuda.Builder` type with internal configuration tree
-  - [x] Test: Builder creation and basic structure
-  - [x] Create `node` struct for configuration tree
-  - [x] Implement `NewBuilder()` constructor
-  - [x] Test: Route registration in any order produces consistent results
-  - [x] Add basic route registration methods (`Get`, `Post`, `Put`, `Delete`, `Patch`)
-- [x] **Build Process with Tests**: Implement the `Build()` method
-  - [x] Test: Build creates immutable http.Handler
-  - [x] Test: Order-independent route registration
-  - [x] DFS traversal of configuration tree
-  - [x] Context accumulation (path prefix and middleware chain)
-  - [x] Handler assembly with middleware wrapping
-  - [x] Integration with `http.ServeMux`
-- [x] **Middleware Support with Tests**: Implement middleware functionality
-  - [x] Test: Global middleware application
-  - [x] Test: Scoped middleware application
-  - [x] Test: Middleware chain composition
-  - [x] `Use()` method for registering middlewares
-  - [x] Global middleware application
-  - [x] Scoped middleware application
-  - [x] Middleware chain composition
-- [-] **Route Grouping with Tests**: Implement route grouping functionality
-  - [x] Test: Nested route groups with path concatenation
-  - [x] Test: Middleware inheritance in nested groups
-  - [x] `Route(pattern, fn)` method for nested routes
-  - [x] `Group(fn)` method for middleware-only groups
-  - [x] Proper path concatenation
-  - [x] Middleware inheritance
-- [x] **Not Found Handler**: Support for custom 404 handlers.
-  - [x] `NotFound(handler)` method on Builder.
-  - [x] Default JSON 404 response if no handler is provided.
-  - [x] Test: Default handler behavior.
-  - [x] Test: Custom handler behavior.
-- [x] **Route Conflict Handling**: Add configurable behavior for duplicate route registrations.
-  - [x] `OnConflict` field in `Builder` (`Warn` or `Error`).
-  - [x] `Build()` method returns an error on conflict when configured to do so.
-  - [x] Add tests for both `Warn` and `Error` behaviors.
-
-### SSE Responder
-- [x] **Server-Sent Events (SSE) Support**: Add a responder for streaming data.
-  - [x] `SSE` function to handle `text/event-stream` responses.
-  - [x] `Event` struct for sending named events.
-  - [x] Add tests for SSE functionality.
 
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage
 - [x] **Middleware demonstration**: Show global and scoped middleware
 - [ ] **Nested groups example**: Show route grouping patterns
-
-### CLI
-- [x] **proutes utility**: Add a utility to display registered handlers.
-    - [x] Add `-proutes` flag to the example application.
