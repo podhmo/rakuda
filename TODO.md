@@ -12,8 +12,8 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 
 ## Implemented
 
-- **Project Structure**: Initial repository setup with LICENSE, README.md, and AGENTS.md.
-- **Documentation**: Design document outlining the core architecture and philosophy ([docs/router-design.md](./docs/router-design.md)).
+- **Documentation**: Design document outlining the core architecture and philosophy ([docs/router-design.md](./docs/router-design.md))
+- **Core Router Implementation**: Implemented a type-safe router using a builder pattern. It supports features like middleware, route grouping, custom "Not Found" handlers, and configurable route conflict handling.
 - **Responder Package**: Implemented the core `Responder` component for handling JSON and error responses, later refactored into the main `rakuda` package.
 - **Lift Function**: Implemented the `lift` function to adapt action handlers (`func(req) (data, error)`) into standard `http.Handler`, supporting custom status codes.
 - **rakudatest Test Helper**: Created the `rakudatest` package with a generic `Do` function to simplify handler testing, including status validation and response decoding. ([sketch/plan-rakudatest.md](./sketch/plan-rakudatest.md))
@@ -23,7 +23,6 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 - **Centralized Logging**: Implemented a centralized logging strategy using functional options on the `Builder` and a context-based logger propagation middleware. ([sketch/plan-sharing-logger.md](./sketch/plan-sharing-logger.md))
 - **SSE Responder**: Added a responder for streaming data using Server-Sent Events (SSE). It supports `text/event-stream` responses and includes helpers for sending named events. See ([sketch/plan-sse-responder.md](./sketch/plan-sse-responder.md)) for details.
 - **CLI**: Added a `proutes` utility to display registered handlers via a command-line flag in the example application.
-- **Core Router Implementation**: Implemented a type-safe router using a builder pattern. It supports features like middleware, route grouping, custom "Not Found" handlers, and configurable route conflict handling.
 
 ## To Be Implemented
 
