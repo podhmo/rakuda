@@ -74,6 +74,8 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
     - [x] **Implement Fallback with Warning**:
         - [x] Modify `LoggerFromContext` to fall back to `slog.Default()`.
         - [x] Use `sync.Once` to log a warning message the first time the fallback occurs.
+- **SSE Responder**: Added a responder for streaming data using Server-Sent Events (SSE). It supports `text/event-stream` responses and includes helpers for sending named events. See ([sketch/plan-sse-responder.md](./sketch/plan-sse-responder.md)) for details.
+- **CLI**: Added a `proutes` utility to display registered handlers via a command-line flag in the example application.
 
 ## To Be Implemented
 
@@ -119,17 +121,7 @@ The key design principle is the **two-stage separation**: configuration stage (B
   - [x] `Build()` method returns an error on conflict when configured to do so.
   - [x] Add tests for both `Warn` and `Error` behaviors.
 
-### SSE Responder
-- [x] **Server-Sent Events (SSE) Support**: Add a responder for streaming data.
-  - [x] `SSE` function to handle `text/event-stream` responses.
-  - [x] `Event` struct for sending named events.
-  - [x] Add tests for SSE functionality.
-
 ### Example Applications
 - [x] **Simple REST API example**: Demonstrate basic usage
 - [x] **Middleware demonstration**: Show global and scoped middleware
 - [ ] **Nested groups example**: Show route grouping patterns
-
-### CLI
-- [x] **proutes utility**: Add a utility to display registered handlers.
-    - [x] Add `-proutes` flag to the example application.

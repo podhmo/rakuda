@@ -57,37 +57,49 @@ When all tasks defined in a `plan-*.md` document are completed, follow these ste
 
 ## Prompt for Finalizing and Refactoring TODO.md
 
-**Task:** Periodically refactor the `TODO.md` file to maintain readability and accurately reflect high-level project progress. This involves summarizing completed work and cleaning up the task lists.
+**Task:** Finalize the project status by refactoring the `TODO.md` file. This is a "clean-up" process that involves summarizing already completed work and moving it to the appropriate section.
 
-**Trigger:** This process should be initiated when the `## To Be Implemented` section becomes cluttered with numerous completed items, making it difficult to see what work is still pending.
+**Primary Goal:** To maintain readability and accurately reflect high-level project progress by archiving completed tasks. This is **not** about adding new tasks from plan documents.
 
-**Refactoring Guidelines:**
+**Trigger:** This process should be initiated when the `## To Be Implemented` section becomes cluttered with numerous completed items (`[x]`), making it difficult to see what work is still pending.
 
-1. **Identify Completed Sections:** Locate any feature sections under `## To Be Implemented` where all sub-tasks are marked as complete (`[x]`).
+**Refactoring Workflow:**
 
-2. **Migrate and Summarize:** Move these completed sections into the `## Implemented` section. When migrating, transform the detailed checklist into a concise summary based on the following rules:
-   - **For Feature Additions:** Describe the new feature that was implemented. The goal is to capture the "what" and "why" of the change, preserving the description of the feature itself.
-   - **For Bug Fixes & Miscellaneous Tasks:** Group related fixes or smaller tasks into a single, summarized bullet point.
-   - **Preserve Key Information:** In all summaries, you **must** preserve:
-     - Any links to `sketch/plan-*.md` or other documentation that explain the decision-making process.
-     - Clear descriptions of major decisions made.
+1.  **Identify Completed Sections:**
+    -   Locate any feature sections under `## To Be Implemented` where **all** sub-tasks are marked as complete (`[x]`).
 
-3. **Clean Up Pending Tasks:** Ensure the `## To Be Implemented` section is left in a clean state, containing only actionable tasks that are genuinely incomplete.
+2.  **Update Plan Documents:**
+    -   For each completed feature, find its corresponding `sketch/plan-*.md` document.
+    -   Add the following note to the very top of that file to mark it as implemented:
+        ```markdown
+        > [!NOTE]
+        > This feature has been implemented.
+        ```
+
+3.  **Migrate and Summarize in `TODO.md`:**
+    -   Move the completed sections from `## To Be Implemented` into the `## Implemented` section.
+    -   When migrating, transform the detailed checklist into a concise, single-line summary.
+    -   **Preserve Key Information:** The summary **must** preserve:
+        -   A clear description of the feature.
+        -   A link to the `sketch/plan-*.md` document for historical context.
+
+4.  **Clean Up `TODO.md`:**
+    -   Ensure the `## To Be Implemented` section is left in a clean state, containing only actionable tasks that are genuinely incomplete.
 
 **Example Transformation:**
 
-- **Before (in `To Be Implemented`):**
-  ```markdown
-  ### Core Router Implementation ([sketch/plan-router.md](./sketch/plan-router.md))
-  - [x] **Implement Builder Type**: Created the Builder type with configuration tree
-  - [x] **Add Route Methods**: Implemented Get, Post, Put, Delete, Patch methods
-  - [x] **Build Process**: Implemented DFS traversal and handler assembly
-  ```
+-   **Before (in `To Be Implemented`):**
+    ```markdown
+    ### Core Router Implementation ([sketch/plan-router.md](./sketch/plan-router.md))
+    - [x] **Implement Builder Type**: Created the Builder type with configuration tree
+    - [x] **Add Route Methods**: Implemented Get, Post, Put, Delete, Patch methods
+    - [x] **Build Process**: Implemented DFS traversal and handler assembly
+    ```
 
-- **After (in `Implemented`):**
-  ```markdown
-  - **Core Router Implementation**: Implemented the Builder type with configuration tree and basic route registration methods. The Build process uses DFS traversal for handler assembly. See ([sketch/plan-router.md](./sketch/plan-router.md)) for details.
-  ```
+-   **After (in `Implemented`):**
+    ```markdown
+    - **Core Router Implementation**: Implemented the Builder type with a configuration tree and basic route registration methods. The build process uses DFS traversal for handler assembly. See ([sketch/plan-router.md](./sketch/plan-router.md)) for details.
+    ```
 
 ---
 
