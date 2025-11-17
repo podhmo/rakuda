@@ -1,17 +1,15 @@
 # bindingparse
 
-This package provides a reference implementation of parser functions that satisfy the `binding.Parser` interface.
+This package provides a minimal, reference implementation of parser functions that satisfy the `binding.Parser` interface.
 
-## Reference Implementation
+## A Deliberately Flawed Example
 
-The parsers provided in this package are intended as a **reference implementation**. They are useful for quickstarts and demonstrations, but they are not suitable for production environments.
+The parsers in this package are **not intended for production use**. They are intentionally simple—thin wrappers around the standard `strconv` package that expose underlying errors directly.
 
-For example, the parsers are thin wrappers around the standard `strconv` package, and they expose the underlying `strconv` errors directly. For a production-grade application, you would likely want to implement your own parser functions with more robust error handling and custom error messages tailored to your application's domain.
+Using this package in a real application would be lazy. It exists only to demonstrate the `binding.Parser` interface. For any serious project, you should write your own `parser` package with robust error handling and messages that are meaningful to your application's users.
 
-## Package Naming Convention: A Nudge Towards Your Own Implementation
+## Why the Awkward Name?
 
-The name `bindingparse` was chosen deliberately.
+The name `bindingparse` is intentionally verbose and inconvenient.
 
-Yes, it is `goimports`-friendly and avoids collisions with common user-defined package names like `parser`. However, the primary reason for its verbose and slightly awkward name is to serve as a constant reminder of its role.
-
-This package is a starting point, not a final destination. The name is intentionally cumbersome to discourage long-term dependency and to encourage you to create your own `parser` package, properly tailored to your application's error handling and validation needs. We believe that for any serious application, you will be better served by a parser package that you control.
+It is a signal. A good, application-specific parser package should simply be named `parser`. The cumbersome name of this package is meant to discourage its continued use and to constantly remind you to replace it with your own, properly designed implementation.
