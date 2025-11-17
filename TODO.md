@@ -23,6 +23,7 @@ For more ambitious, long-term features, see [docs/router-design.md](./docs/route
 - **Centralized Logging**: Implemented a centralized logging strategy using functional options on the `Builder` and a context-based logger propagation middleware. ([sketch/plan-sharing-logger.md](./sketch/plan-sharing-logger.md))
 - **SSE Responder**: Added a responder for streaming data using Server-Sent Events (SSE). It supports `text/event-stream` responses and includes helpers for sending named events. See ([sketch/plan-sse-responder.md](./sketch/plan-sse-responder.md)) for details.
 - **CLI**: Added a `proutes` utility to display registered handlers via a command-line flag in the example application.
+- **bindingparse Package**: Created the `bindingparse` package to provide a reference implementation of `binding.Parser` functions for common data types. It also includes a generic `WithValidation` helper to compose parsers with validation logic. ([sketch/plan-binding-parse.md](./sketch/plan-binding-parse.md))
 
 ## To Be Implemented
 
