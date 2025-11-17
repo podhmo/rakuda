@@ -5,12 +5,13 @@ This document outlines the plan to create a new `bindingparse` package, which wi
 ## 1. Package Structure and Naming
 
 - **Create a new directory:** `binding/bindingparse/`
-- **Create a `README.md`:** Explain the package naming convention. Following the precedent set by `rakudamiddleware`, the `bindingparse` package is intentionally prefixed to avoid naming collisions with user-defined `parser` packages and to make it clear that it is part of the `rakuda` ecosystem.
+- **Create a `README.md`:** Explain the package's purpose and naming convention. The key points to convey are:
+  - This package is a **reference implementation** only, useful for demos but not for production due to its simplistic error handling (e.g., exposing `strconv` errors).
+  - The name `bindingparse` is intentionally verbose and awkward. This is not just to avoid `goimports` collisions with common package names like `parser`, but more importantly, to serve as a constant reminder of its reference status. The name is designed to discourage long-term dependency and to actively encourage users to create their own custom `parser` package tailored to their application's specific needs.
 - **Create source files:**
-  - `binding/bindingparse/parsers.go`: For standard parser implementations (e.g., `Int`, `String`, `Bool`).
-  - `binding/bindingparse/validate.go`: For the generic parser generator that incorporates validation.
-  - `binding/bindingparse/parsers_test.go`: Tests for the standard parsers.
-  - `binding/bindingparse/validate_test.go`: Tests for the validation-aware parser generator.
+  - `binding/bindingparse/parsers.go`: For standard parser implementations and validation helpers.
+  - `binding/bindingparse/parsers_test.go`: Tests for both standard parsers and validation helpers.
+  *Note: The implementation initially planned for separate `validate.go` and `validate_test.go` files, but they were later merged into `parsers.go` and `parsers_test.go` respectively for simplicity.*
 
 ## 2. Standard Parsers (`parsers.go`)
 
@@ -25,7 +26,7 @@ This document outlines the plan to create a new `bindingparse` package, which wi
   - `Float64(s string) (float64, error)`
   - And other integer/float types as seen in the reference.
 
-## 3. Generic Parser with Validation (`validate.go`)
+## 3. Generic Parser with Validation (`parsers.go`)
 
 - **Define a `Validator` interface:**
   ```go
@@ -44,14 +45,10 @@ This document outlines the plan to create a new `bindingparse` package, which wi
 
 ## 4. Testing
 
-- **`parsers_test.go`:** Write unit tests for the standard parser functions.
+- **`parsers_test.go`:** Write unit tests for the standard parser functions and the `WithValidation` helper.
   - Test successful parsing cases.
   - Test failing cases (e.g., invalid input format).
-- **`validate_test.go`:** Write unit tests for the `WithValidation` helper.
-  - Define a test struct that implements the `Validator` interface.
-  - Create a base parser for this struct (e.g., using `json.Unmarshal`).
-  - Wrap the base parser with `WithValidation`.
-  - Test three scenarios:
+  - Test the three scenarios for `WithValidation`:
     1. Parsing fails.
     2. Parsing succeeds, but validation fails.
     3. Both parsing and validation succeed.
