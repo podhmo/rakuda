@@ -146,9 +146,9 @@ func (v *testValidatable) Validate() error {
 	return nil
 }
 
-// parserForTestValidatable is a simple parser for testValidatable, using JSON unmarshaling.
-func parserForTestValidatable(s string) (*testValidatable, error) {
-	var v testValidatable
+// jsonParser is a generic parser for any JSON-unmarshable type T.
+func jsonParser[T any](s string) (*T, error) {
+	var v T
 	if err := json.Unmarshal([]byte(s), &v); err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func parserForTestValidatable(s string) (*testValidatable, error) {
 
 func TestWithValidation(t *testing.T) {
 	// Create a new parser that includes the validation step.
-	validatedParser := WithValidation(parserForTestValidatable)
+	validatedParser := WithValidation(jsonParser[testValidatable])
 
 	tests := []struct {
 		name      string
